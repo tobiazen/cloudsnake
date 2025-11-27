@@ -64,10 +64,10 @@ class GameServer:
         except:
             local_ip = "Unable to determine"
         
-        print(f"🎮 Game Server started on {self.host}:{self.port}")
-        print(f"🌐 Server IP address: {local_ip}")
-        print(f"📡 Broadcasting game state at 2Hz (every {self.broadcast_interval}s)")
-        print("Waiting for clients to connect...\n")
+        # print(f"🎮 Game Server started on {self.host}:{self.port}")
+        # print(f"🌐 Server IP address: {local_ip}")
+        # print(f"📡 Broadcasting game state at 2Hz (every {self.broadcast_interval}s)")
+        # print("Waiting for clients to connect...\n")
         
         # Start broadcast thread
         broadcast_thread = threading.Thread(target=self.broadcast_game_state, daemon=True)
@@ -104,7 +104,7 @@ class GameServer:
         elif message_type == 'ping':
             self.handle_ping(client_address)
         else:
-            print(f"⚠️  Unknown message type: {message_type} from {client_address}")
+            pass  # print(f"⚠️  Unknown message type: {message_type} from {client_address}")
     
     def handle_connect(self, client_address: Tuple[str, int], message: dict):
         """Handle client connection"""
@@ -113,7 +113,7 @@ class GameServer:
         if client_address not in self.clients:
             # Check if server is full
             if len(self.clients) >= self.max_players:
-                print(f"⛔ Server full! Rejected connection from {player_name} at {client_address[0]}:{client_address[1]}")
+                # print(f"⛔ Server full! Rejected connection from {player_name} at {client_address[0]}:{client_address[1]}")
                 
                 # Send server full message
                 full_msg = {
@@ -137,7 +137,7 @@ class GameServer:
                     random.randint(50, 255),
                     random.randint(50, 255)
                 )
-                print(f"⚠️  All predefined colors in use, generated random color: RGB{color}")
+                pass  # print(f"⚠️  All predefined colors in use, generated random color: RGB{color}")
             else:
                 # Assign the first available color
                 color = available[0]
@@ -163,9 +163,9 @@ class GameServer:
             # Add to game state
             self.game_state['players'][str(client_address)] = self.clients[client_address].copy()
             
-            print(f"✅ Client connected: {player_name} from {client_address[0]}:{client_address[1]}")
-            print(f"   Assigned color: RGB{color}")
-            print(f"   Total clients: {len(self.clients)}\n")
+            # print(f"✅ Client connected: {player_name} from {client_address[0]}:{client_address[1]}")
+            # print(f"   Assigned color: RGB{color}")
+            # print(f"   Total clients: {len(self.clients)}\n")
             
             # Send welcome message
             welcome_msg = {
@@ -179,7 +179,7 @@ class GameServer:
         else:
             # Client reconnecting
             self.clients[client_address]['last_seen'] = time.time()
-            print(f"🔄 Client reconnected: {player_name} from {client_address[0]}:{client_address[1]}")
+            # print(f"🔄 Client reconnected: {player_name} from {client_address[0]}:{client_address[1]}")
     
     def handle_disconnect(self, client_address: Tuple[str, int]):
         """Handle client disconnection"""
@@ -197,9 +197,9 @@ class GameServer:
             if str(client_address) in self.game_state['players']:
                 del self.game_state['players'][str(client_address)]
             
-            print(f"❌ Client disconnected: {player_name} from {client_address[0]}:{client_address[1]}")
-            print(f"   Color RGB{player_color} is now available")
-            print(f"   Total clients: {len(self.clients)}\n")
+            # print(f"❌ Client disconnected: {player_name} from {client_address[0]}:{client_address[1]}")
+            # print(f"   Color RGB{player_color} is now available")
+            # print(f"   Total clients: {len(self.clients)}\n")
     
     def handle_player_update(self, client_address: Tuple[str, int], message: dict):
         """Handle player state updates (direction changes, respawns)"""
@@ -225,7 +225,7 @@ class GameServer:
                 self.clients[client_address]['direction'] = random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
                 self.clients[client_address]['score'] = new_score
                 self.clients[client_address]['alive'] = True
-                print(f"🔄 {self.clients[client_address]['player_name']} respawned (score: {previous_score} → {new_score})")
+                # print(f"🔄 {self.clients[client_address]['player_name']} respawned (score: {previous_score} → {new_score})")
             
             self.clients[client_address]['last_seen'] = time.time()
             
@@ -269,10 +269,10 @@ class GameServer:
             
             if pos not in occupied:
                 self.bricks.append([x, y])
-                print(f"🧱 Brick spawned at ({x}, {y})")
+                # print(f"🧱 Brick spawned at ({x}, {y})")
                 return True
         
-        print(f"⚠️  Could not find empty space for brick")
+        # print(f"⚠️  Could not find empty space for brick")
         return False
     
     def update_bricks(self):
@@ -287,7 +287,7 @@ class GameServer:
         while len(self.bricks) > required_bricks:
             if self.bricks:
                 removed = self.bricks.pop()
-                print(f"🧱 Brick removed from ({removed[0]}, {removed[1]})")
+                # print(f"🧱 Brick removed from ({removed[0]}, {removed[1]})")
     
     def check_brick_collection(self, client_address, snake):
         """Check if snake head collected a brick"""
@@ -301,7 +301,7 @@ class GameServer:
             if head == brick_pos:
                 # Snake collected brick
                 client_data = self.clients[client_address]
-                print(f"🎉 {client_data['player_name']} collected a brick!")
+                # print(f"🎉 {client_data['player_name']} collected a brick!")
                 
                 # Remove the brick
                 self.bricks.pop(i)
@@ -353,13 +353,13 @@ class GameServer:
             if (new_head[0] < 0 or new_head[0] >= self.grid_width or
                 new_head[1] < 0 or new_head[1] >= self.grid_height):
                 client_data['alive'] = False
-                print(f"💀 {client_data['player_name']} hit a wall!")
+                # print(f"💀 {client_data['player_name']} hit a wall!")
                 continue
             
             # Check collision with own snake
             if new_head in snake:
                 client_data['alive'] = False
-                print(f"💀 {client_data['player_name']} hit themselves!")
+                # print(f"💀 {client_data['player_name']} hit themselves!")
                 continue
             
             # Check collision with other players' snakes
@@ -369,7 +369,7 @@ class GameServer:
                     other_snake = other_data.get('snake', [])
                     if new_head in [tuple(pos) if isinstance(pos, list) else pos for pos in other_snake]:
                         client_data['alive'] = False
-                        print(f"💀 {client_data['player_name']} hit {other_data['player_name']}'s snake!")
+                        # print(f"💀 {client_data['player_name']} hit {other_data['player_name']}'s snake!")
                         collision = True
                         break
             
@@ -442,7 +442,7 @@ class GameServer:
                         inactive.append(client_address)
                 
                 for client_address in inactive:
-                    print(f"⏱️  Client timeout: {client_address}")
+                    # print(f"⏱️  Client timeout: {client_address}")
                     self.handle_disconnect(client_address)
             
             time.sleep(self.broadcast_interval)
@@ -456,19 +456,19 @@ class GameServer:
         """Stop the server"""
         self.running = False
         self.socket.close()
-        print("\n🛑 Server stopped")
+        # print("\n🛑 Server stopped")
 
 def main():
-    print("="*60)
-    print("🎮 GAME SERVER")
-    print("="*60)
+    # print("="*60)
+    # print("🎮 GAME SERVER")
+    # print("="*60)
     
     server = GameServer()
     
     try:
         server.start()
     except KeyboardInterrupt:
-        print("\n\n⚠️  Shutting down server...")
+        # print("\n\n⚠️  Shutting down server...")
         server.stop()
     except Exception as e:
         print(f"\n❌ Server error: {e}")

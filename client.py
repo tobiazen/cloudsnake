@@ -71,20 +71,20 @@ class GameClient:
                 self.connected = True
                 self.player_id = response.get('player_id')
                 self.my_color = response.get('color', (0, 255, 0))
-                print(f"✅ Connected successfully!")
-                print(f"   {response.get('message')}")
-                print(f"   Player ID: {self.player_id}")
-                print(f"   Assigned color: RGB{self.my_color}")
-                print(f"   Players online: {response.get('player_count')}\n")
+                # print(f"✅ Connected successfully!")
+                # print(f"   {response.get('message')}")
+                # print(f"   Player ID: {self.player_id}")
+                # print(f"   Assigned color: RGB{self.my_color}")
+                # print(f"   Players online: {response.get('player_count')}\n")
                 return True
             elif response.get('type') == 'server_full':
-                print(f"⛔ Server is full!")
-                print(f"   {response.get('message')}")
-                print(f"   {response.get('current_players')}/{response.get('max_players')} players connected\n")
+                # print(f"⛔ Server is full!")
+                # print(f"   {response.get('message')}")
+                # print(f"   {response.get('current_players')}/{response.get('max_players')} players connected\n")
                 return False
             
         except socket.timeout:
-            print("❌ Connection timeout - server not responding")
+            # print("❌ Connection timeout - server not responding")
             return False
         except Exception as e:
             print(f"❌ Connection failed: {e}")
@@ -160,13 +160,13 @@ class GameClient:
         game_time = self.game_state.get('game_time', 0)
         
         # Clear previous output (simple approach)
-        print("\n" + "="*60)
-        print(f"🎮 GAME STATE (Time: {game_time:.1f}s)")
-        print("="*60)
+        # print("\n" + "="*60)
+        # print(f"🎮 GAME STATE (Time: {game_time:.1f}s)")
+        # print("="*60)
         
         if players:
-            print(f"👥 Players online: {len(players)}")
-            print()
+            # print(f"👥 Players online: {len(players)}")
+
             for player_id, player_info in players.items():
                 name = player_info.get('player_name', 'Unknown')
                 x = player_info.get('x', 0)
@@ -174,12 +174,12 @@ class GameClient:
                 score = player_info.get('score', 0)
                 
                 indicator = "⭐ (You)" if player_id == self.player_id else ""
-                print(f"  {name} {indicator}")
-                print(f"    Position: ({x}, {y}) | Score: {score}")
+                pass  # print(f"  {name} {indicator}")
+                # print(f"    Position: ({x}, {y}) | Score: {score}")
         else:
-            print("No players online")
+            pass  # print("No players online")
         
-        print("="*60)
+        # print("="*60)
     
     def send_heartbeat(self):
         """Send periodic ping to server to maintain connection"""
@@ -829,10 +829,10 @@ class GameGUI:
         pygame.quit()
 
 def main():
-    print("="*60)
-    print("🎮 GAME CLIENT - GUI Mode")
-    print("="*60)
-    print("Starting GUI...")
+    # print("="*60)
+    # print("🎮 GAME CLIENT - GUI Mode")
+    # print("="*60)
+    # print("Starting GUI...")
     
     gui = GameGUI()
     
