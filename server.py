@@ -97,6 +97,56 @@ class GameServer:
         else:
             pass  # print(f"⚠️  Unknown message type: {message_type} from {client_address}")
     
+    def get_safe_direction(self, x: int, y: int) -> str:
+        """Get a safe initial direction that won't hit walls or other players within 2 steps"""
+        import random
+        
+        # Collect all occupied positions from other players
+        occupied = set()
+        for client_data in self.clients.values():
+            if client_data.get('alive', True):
+                snake = client_data.get('snake', [])
+                for segment in snake:
+                    if isinstance(segment, tuple):
+                        occupied.add(segment)
+                    else:
+                        occupied.add(tuple(segment))
+        
+        # Check each direction for safety (2 steps ahead)
+        safe_directions = []
+        
+        # UP: check y-1 and y-2
+        if y >= 2 and (x, y-1) not in occupied and (x, y-2) not in occupied:
+            safe_directions.append('UP')
+        
+        # DOWN: check y+1 and y+2
+        if y < self.grid_height - 2 and (x, y+1) not in occupied and (x, y+2) not in occupied:
+            safe_directions.append('DOWN')
+        
+        # LEFT: check x-1 and x-2
+        if x >= 2 and (x-1, y) not in occupied and (x-2, y) not in occupied:
+            safe_directions.append('LEFT')
+        
+        # RIGHT: check x+1 and x+2
+        if x < self.grid_width - 2 and (x+1, y) not in occupied and (x+2, y) not in occupied:
+            safe_directions.append('RIGHT')
+        
+        # Return a random safe direction, or fallback to any direction if none are safe
+        if safe_directions:
+            return random.choice(safe_directions)
+        else:
+            # Fallback: choose direction away from nearest wall
+            directions = []
+            if y >= 2:
+                directions.append('UP')
+            if y < self.grid_height - 2:
+                directions.append('DOWN')
+            if x >= 2:
+                directions.append('LEFT')
+            if x < self.grid_width - 2:
+                directions.append('RIGHT')
+            return random.choice(directions) if directions else 'RIGHT'
+    
     def handle_connect(self, client_address: Tuple[str, int], message: dict):
         """Handle client connection"""
         player_name = message.get('player_name', f'Player_{len(self.clients) + 1}')
@@ -140,12 +190,15 @@ class GameServer:
             start_x = random.randint(5, 35)
             start_y = random.randint(5, 25)
             
+            # Get a safe initial direction
+            safe_direction = self.get_safe_direction(start_x, start_y)
+            
             self.clients[client_address] = {
                 'player_name': player_name,
                 'connected_at': time.time(),
                 'last_seen': time.time(),
                 'snake': [(start_x, start_y)],
-                'direction': random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT']),
+                'direction': safe_direction,
                 'score': 0,
                 'alive': True,
                 'color': color
@@ -212,8 +265,11 @@ class GameServer:
                 previous_score = self.clients[client_address].get('score', 0)
                 new_score = previous_score // 2
                 
+                # Get a safe initial direction
+                safe_direction = self.get_safe_direction(start_x, start_y)
+                
                 self.clients[client_address]['snake'] = [(start_x, start_y)]
-                self.clients[client_address]['direction'] = random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
+                self.clients[client_address]['direction'] = safe_direction
                 self.clients[client_address]['score'] = new_score
                 self.clients[client_address]['alive'] = True
                 # print(f"🔄 {self.clients[client_address]['player_name']} respawned (score: {previous_score} → {new_score})")
