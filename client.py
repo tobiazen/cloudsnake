@@ -25,7 +25,7 @@ BLUE = (0, 100, 200)
 YELLOW = (255, 200, 0)
 
 class GameClient:
-    def __init__(self, server_ip: str, server_port: int = 9089, player_name: str = "Player"):
+    def __init__(self, server_ip: str, server_port: int = 50000, player_name: str = "Player"):
         self.server_ip = server_ip
         self.server_port = server_port
         self.server_address = (server_ip, server_port)
@@ -654,7 +654,7 @@ class GameGUI:
     def connect_to_server(self, server_ip, player_name):
         """Connect to server in background"""
         try:
-            self.client = GameClient(server_ip, 9089, player_name)
+            self.client = GameClient(server_ip, 50000, player_name)
             if self.client.connect():
                 self.client.running = True
                 

@@ -5,7 +5,7 @@ import json
 from typing import Dict, Tuple, Any
 
 class GameServer:
-    def __init__(self, host: str = '0.0.0.0', port: int = 9089):
+    def __init__(self, host: str = '0.0.0.0', port: int = 50000):
         self.host = host
         self.port = port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
