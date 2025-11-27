@@ -56,16 +56,7 @@ class GameServer:
         """Start the server"""
         self.running = True
         
-        # Get actual IP address
-        import socket as sock
-        hostname = sock.gethostname()
-        try:
-            local_ip = sock.gethostbyname(hostname)
-        except:
-            local_ip = "Unable to determine"
-        
         # print(f"🎮 Game Server started on {self.host}:{self.port}")
-        # print(f"🌐 Server IP address: {local_ip}")
         # print(f"📡 Broadcasting game state at 2Hz (every {self.broadcast_interval}s)")
         # print("Waiting for clients to connect...\n")
         
