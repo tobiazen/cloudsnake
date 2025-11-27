@@ -27,6 +27,28 @@ class GameServer:
         self.grid_height = 30
         self.bricks = []  # Active bricks in the game
         
+        # Color pool for players
+        self.available_colors = [
+            (0, 255, 0),      # Green
+            (255, 0, 0),      # Red
+            (0, 100, 255),    # Blue
+            (255, 255, 0),    # Yellow
+            (255, 0, 255),    # Magenta
+            (0, 255, 255),    # Cyan
+            (255, 128, 0),    # Orange
+            (128, 0, 255),    # Purple
+            (255, 192, 203),  # Pink
+            (0, 255, 128),    # Spring Green
+            (128, 255, 0),    # Chartreuse
+            (255, 64, 64),    # Light Red
+            (64, 64, 255),    # Light Blue
+            (255, 255, 128),  # Light Yellow
+            (128, 255, 255),  # Light Cyan
+            (255, 128, 255),  # Light Magenta
+        ]
+        self.used_colors = set()  # Track colors currently in use
+        self.max_players = 16  # Maximum number of players allowed
+        
         self.running = False
         self.broadcast_interval = 0.5  # 2Hz = 0.5 seconds
         
@@ -34,7 +56,16 @@ class GameServer:
         """Start the server"""
         self.running = True
         
+        # Get actual IP address
+        import socket as sock
+        hostname = sock.gethostname()
+        try:
+            local_ip = sock.gethostbyname(hostname)
+        except:
+            local_ip = "Unable to determine"
+        
         print(f"🎮 Game Server started on {self.host}:{self.port}")
+        print(f"🌐 Server IP address: {local_ip}")
         print(f"📡 Broadcasting game state at 2Hz (every {self.broadcast_interval}s)")
         print("Waiting for clients to connect...\n")
         
@@ -80,24 +111,39 @@ class GameServer:
         player_name = message.get('player_name', f'Player_{len(self.clients) + 1}')
         
         if client_address not in self.clients:
+            # Check if server is full
+            if len(self.clients) >= self.max_players:
+                print(f"⛔ Server full! Rejected connection from {player_name} at {client_address[0]}:{client_address[1]}")
+                
+                # Send server full message
+                full_msg = {
+                    'type': 'server_full',
+                    'message': f'Server is full ({self.max_players}/{self.max_players} players). Please try again later.',
+                    'max_players': self.max_players,
+                    'current_players': len(self.clients)
+                }
+                self.send_to_client(client_address, full_msg)
+                return
+            
             import random
             
-            # Assign a unique color to each player
-            colors = [
-                (0, 255, 0),      # Green
-                (255, 0, 0),      # Red
-                (0, 100, 255),    # Blue
-                (255, 255, 0),    # Yellow
-                (255, 0, 255),    # Magenta
-                (0, 255, 255),    # Cyan
-                (255, 128, 0),    # Orange
-                (128, 0, 255),    # Purple
-                (255, 192, 203),  # Pink
-                (0, 255, 128),    # Spring Green
-            ]
+            # Find an available color that's not in use
+            available = [c for c in self.available_colors if c not in self.used_colors]
             
-            # Select color based on player index, cycle if needed
-            color_index = len(self.clients) % len(colors)
+            if not available:
+                # If all colors are used, generate a random color
+                color = (
+                    random.randint(50, 255),
+                    random.randint(50, 255),
+                    random.randint(50, 255)
+                )
+                print(f"⚠️  All predefined colors in use, generated random color: RGB{color}")
+            else:
+                # Assign the first available color
+                color = available[0]
+            
+            # Mark color as used
+            self.used_colors.add(color)
             
             # Random starting position for snake
             start_x = random.randint(5, 35)
@@ -111,14 +157,14 @@ class GameServer:
                 'direction': random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT']),
                 'score': 0,
                 'alive': True,
-                'color': colors[color_index]
+                'color': color
             }
             
             # Add to game state
             self.game_state['players'][str(client_address)] = self.clients[client_address].copy()
             
             print(f"✅ Client connected: {player_name} from {client_address[0]}:{client_address[1]}")
-            print(f"   Assigned color: RGB{colors[color_index]}")
+            print(f"   Assigned color: RGB{color}")
             print(f"   Total clients: {len(self.clients)}\n")
             
             # Send welcome message
@@ -127,7 +173,7 @@ class GameServer:
                 'message': f'Welcome to the game, {player_name}!',
                 'player_id': str(client_address),
                 'player_count': len(self.clients),
-                'color': colors[color_index]
+                'color': color
             }
             self.send_to_client(client_address, welcome_msg)
         else:
@@ -139,6 +185,12 @@ class GameServer:
         """Handle client disconnection"""
         if client_address in self.clients:
             player_name = self.clients[client_address]['player_name']
+            player_color = self.clients[client_address].get('color')
+            
+            # Free up the color for reuse
+            if player_color and player_color in self.used_colors:
+                self.used_colors.remove(player_color)
+            
             del self.clients[client_address]
             
             # Remove from game state
@@ -146,6 +198,7 @@ class GameServer:
                 del self.game_state['players'][str(client_address)]
             
             print(f"❌ Client disconnected: {player_name} from {client_address[0]}:{client_address[1]}")
+            print(f"   Color RGB{player_color} is now available")
             print(f"   Total clients: {len(self.clients)}\n")
     
     def handle_player_update(self, client_address: Tuple[str, int], message: dict):

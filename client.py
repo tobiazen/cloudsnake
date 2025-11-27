@@ -3,6 +3,7 @@ import threading
 import time
 import json
 import pygame
+import os
 from typing import Optional
 
 # Initialize Pygame
@@ -76,6 +77,11 @@ class GameClient:
                 print(f"   Assigned color: RGB{self.my_color}")
                 print(f"   Players online: {response.get('player_count')}\n")
                 return True
+            elif response.get('type') == 'server_full':
+                print(f"⛔ Server is full!")
+                print(f"   {response.get('message')}")
+                print(f"   {response.get('current_players')}/{response.get('max_players')} players connected\n")
+                return False
             
         except socket.timeout:
             print("❌ Connection timeout - server not responding")
@@ -138,6 +144,10 @@ class GameClient:
         elif message_type == 'welcome':
             # Already handled in connect()
             pass
+        elif message_type == 'server_full':
+            # Server is full
+            print(f"⛔ {message.get('message', 'Server is full')}")
+            self.connected = False
         else:
             print(f"⚠️  Unknown message type: {message_type}")
     
@@ -304,13 +314,25 @@ class GameGUI:
         # Client instance
         self.client: Optional[GameClient] = None
         
+        # Settings management
+        self.settings_file = 'settings.json'
+        self.settings = self.load_settings()
+        
         # GUI state
         self.state = 'connection'  # 'connection', 'connecting', 'game'
         self.connection_error = ""
         
+        # Name dropdown state
+        self.dropdown_open = False
+        self.selected_name_index = 0
+        
         # Connection screen widgets
-        self.ip_input = InputBox(300, 250, 400, 40, 'localhost')
-        self.name_input = InputBox(300, 320, 400, 40, f'Player_{int(time.time()) % 1000}')
+        server_ip = self.settings.get('server_ip', '129.151.219.36')
+        last_name = self.settings.get('last_player_name', '')
+        
+        self.ip_input = InputBox(300, 250, 400, 40, server_ip)
+        self.name_input = InputBox(300, 320, 400, 40, last_name)
+        self.dropdown_button = Button(705, 320, 40, 40, '▼', GRAY)
         self.connect_button = Button(400, 400, 200, 50, 'Connect', GREEN)
         
         # Game settings
@@ -333,6 +355,39 @@ class GameGUI:
         self.title_font = pygame.font.Font(None, 64)
         self.font = pygame.font.Font(None, 32)
         self.small_font = pygame.font.Font(None, 24)
+    
+    def load_settings(self):
+        """Load settings from file"""
+        if os.path.exists(self.settings_file):
+            try:
+                with open(self.settings_file, 'r') as f:
+                    return json.load(f)
+            except:
+                pass
+        return {'player_names': [], 'last_player_name': '', 'server_ip': '129.151.219.36'}
+    
+    def save_settings(self):
+        """Save settings to file"""
+        try:
+            with open(self.settings_file, 'w') as f:
+                json.dump(self.settings, f, indent=4)
+        except Exception as e:
+            print(f"Error saving settings: {e}")
+    
+    def add_player_name(self, name):
+        """Add player name to history"""
+        if name and name.strip():
+            name = name.strip()
+            # Remove if already exists (to move to front)
+            if name in self.settings['player_names']:
+                self.settings['player_names'].remove(name)
+            # Add to front
+            self.settings['player_names'].insert(0, name)
+            # Keep only last 10 names
+            self.settings['player_names'] = self.settings['player_names'][:10]
+            # Update last used name
+            self.settings['last_player_name'] = name
+            self.save_settings()
         
     def draw_connection_screen(self):
         """Draw the connection screen"""
@@ -353,7 +408,28 @@ class GameGUI:
         # Input boxes and button
         self.ip_input.draw(self.screen)
         self.name_input.draw(self.screen)
+        self.dropdown_button.draw(self.screen)
         self.connect_button.draw(self.screen)
+        
+        # Draw dropdown menu if open
+        if self.dropdown_open and self.settings['player_names']:
+            dropdown_y = 365
+            for i, name in enumerate(self.settings['player_names'][:10]):
+                item_rect = pygame.Rect(300, dropdown_y + i * 35, 400, 35)
+                # Highlight hovered item
+                mouse_pos = pygame.mouse.get_pos()
+                if item_rect.collidepoint(mouse_pos):
+                    pygame.draw.rect(self.screen, BLUE, item_rect)
+                    color = WHITE
+                else:
+                    pygame.draw.rect(self.screen, WHITE, item_rect)
+                    color = BLACK
+                pygame.draw.rect(self.screen, DARK_GRAY, item_rect, 2)
+                
+                # Truncate long names
+                display_name = name if len(name) <= 30 else name[:27] + "..."
+                name_text = self.small_font.render(display_name, True, color)
+                self.screen.blit(name_text, (item_rect.x + 5, item_rect.y + 8))
         
         # Error message
         if self.connection_error:
@@ -548,23 +624,24 @@ class GameGUI:
                 name = player_info.get('player_name', 'Unknown')
                 score = player_info.get('score', 0)
                 alive = player_info.get('alive', True)
+                snake_color = player_info.get('color', (255, 255, 255))
                 
                 # Truncate long names
                 if len(name) > 10:
                     name = name[:10] + ".."
                 
-                # Highlight current player
+                # Highlight current player with arrow
                 if player_id == self.client.player_id:
                     name = f"► {name}"
-                    color = BLUE
-                else:
-                    color = BLACK
+                
+                # Use snake color for the name text
+                text_color = snake_color
                 
                 # Show dead status
                 status = "💀" if not alive else ""
                 
                 # Draw player info
-                name_text = self.small_font.render(f"{name} {status}", True, color)
+                name_text = self.small_font.render(f"{name} {status}", True, text_color)
                 self.screen.blit(name_text, (panel_x + 5, y_offset))
                 
                 score_text = self.small_font.render(f"Score: {score}", True, DARK_GRAY)
@@ -582,6 +659,29 @@ class GameGUI:
     
     def handle_connection_events(self, event):
         """Handle events on connection screen"""
+        # Handle dropdown button
+        if self.dropdown_button.handle_event(event):
+            if self.settings['player_names']:
+                self.dropdown_open = not self.dropdown_open
+        
+        # Handle dropdown selection
+        if event.type == pygame.MOUSEBUTTONDOWN and self.dropdown_open:
+            mouse_pos = event.pos
+            dropdown_y = 365
+            for i, name in enumerate(self.settings['player_names'][:10]):
+                item_rect = pygame.Rect(300, dropdown_y + i * 35, 400, 35)
+                if item_rect.collidepoint(mouse_pos):
+                    self.name_input.text = name
+                    self.dropdown_open = False
+                    return
+        
+        # Close dropdown if clicking outside
+        if event.type == pygame.MOUSEBUTTONDOWN and self.dropdown_open:
+            mouse_pos = event.pos
+            dropdown_area = pygame.Rect(300, 320, 445, 400)
+            if not dropdown_area.collidepoint(mouse_pos):
+                self.dropdown_open = False
+        
         self.ip_input.handle_event(event)
         self.name_input.handle_event(event)
         
@@ -640,10 +740,17 @@ class GameGUI:
             return
         
         if not player_name:
-            player_name = f"Player_{int(time.time()) % 1000}"
+            self.connection_error = "Please enter a player name"
+            return
+        
+        # Save the player name and server IP
+        self.add_player_name(player_name)
+        self.settings['server_ip'] = server_ip
+        self.save_settings()
         
         self.state = 'connecting'
         self.connection_error = ""
+        self.dropdown_open = False
         
         # Start connection in background thread
         thread = threading.Thread(target=self.connect_to_server, 
@@ -673,7 +780,11 @@ class GameGUI:
                 self.state = 'game'
             else:
                 self.state = 'connection'
-                self.connection_error = "Connection failed"
+                # Check if connection failed due to server being full
+                if hasattr(self.client, 'connected') and not self.client.connected:
+                    self.connection_error = "Server is full - Try later"
+                else:
+                    self.connection_error = "Connection failed"
         except Exception as e:
             self.state = 'connection'
             self.connection_error = f"Error: {str(e)[:30]}"
