@@ -8,7 +8,7 @@ Tests verify that:
 """
 
 import unittest
-import socket
+from typing import Dict, Any
 from unittest.mock import patch, MagicMock
 from server import GameServer
 
@@ -67,7 +67,7 @@ class TestBulletReset(unittest.TestCase):
         
         # Create a bullet that will hit player 1's head
         # Bullet is owned by player 2 and positioned at player 1's head
-        bullet = {
+        bullet: Dict[str, Any] = {
             'pos': [10, 10],  # Player 1's head position (as list for mutability)
             'direction': 'RIGHT',
             'owner': self.player2_addr
@@ -134,7 +134,7 @@ class TestBulletReset(unittest.TestCase):
         self.assertEqual(self.server.clients[self.player1_addr]['bullets'], 0)
 
     @patch('random.randint')
-    def test_bullets_reset_on_respawn(self, mock_randint):
+    def test_bullets_reset_on_respawn(self, mock_randint: MagicMock) -> None:
         """Test that bullets are reset to 0 when player respawns"""
         # Mock random position for respawn
         mock_randint.side_effect = [15, 15]  # x, y coordinates
@@ -144,7 +144,7 @@ class TestBulletReset(unittest.TestCase):
         self.server.clients[self.player1_addr]['bullets'] = 5  # Still has bullets after death
         
         # Send respawn request
-        respawn_message = {
+        respawn_message: Dict[str, Any] = {
             'type': 'player_update',
             'data': {
                 'respawn': True
@@ -176,7 +176,7 @@ class TestBulletReset(unittest.TestCase):
         
         # Respawn player 1
         with patch('random.randint', side_effect=[15, 15]):
-            respawn_message = {
+            respawn_message: Dict[str, Any] = {
                 'type': 'player_update',
                 'data': {'respawn': True}
             }
@@ -220,7 +220,7 @@ class TestBulletReset(unittest.TestCase):
                 self.server.clients[self.player1_addr]['bullets'] = 0
                 
                 # Respawn
-                respawn_message = {
+                respawn_message: Dict[str, Any] = {
                     'type': 'player_update',
                     'data': {'respawn': True}
                 }

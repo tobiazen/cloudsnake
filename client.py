@@ -4,7 +4,7 @@ import time
 import json
 import pygame
 import os
-from typing import Optional
+from typing import Optional, Dict, Any, Tuple
 
 # Initialize Pygame
 pygame.init()
@@ -50,7 +50,7 @@ class GameClient:
             'direction': 'RIGHT',  # Only track direction on client side
         }
     
-    def connect(self):
+    def connect(self) -> bool:
         """Connect to the game server"""
         print(f"🔌 Connecting to server at {self.server_ip}:{self.server_port}...")
         
@@ -92,7 +92,7 @@ class GameClient:
         
         return False
     
-    def start(self):
+    def start(self) -> None:
         """Start the client"""
         if not self.connected:
             if not self.connect():
@@ -111,7 +111,7 @@ class GameClient:
         # Main client loop
         self.run()
     
-    def receive_messages(self):
+    def receive_messages(self) -> None:
         """Receive messages from server"""
         while self.running:
             try:
@@ -128,9 +128,9 @@ class GameClient:
                 if self.running:
                     print(f"❌ Error receiving data: {e}")
     
-    def handle_server_message(self, message: dict):
+    def handle_server_message(self, message: Dict[str, Any]) -> None:
         """Handle messages from server"""
-        message_type = message.get('type', '')
+        message_type: str = message.get('type', '')
         
         # Update last received time for any message from server
         self.last_update_time = time.time()
@@ -151,13 +151,13 @@ class GameClient:
         else:
             print(f"⚠️  Unknown message type: {message_type}")
     
-    def display_game_state(self):
+    def display_game_state(self) -> None:
         """Display current game state"""
         if not self.game_state:
             return
         
-        players = self.game_state.get('players', {})
-        game_time = self.game_state.get('game_time', 0)
+        players: Dict[str, Any] = self.game_state.get('players', {})
+        game_time: float = self.game_state.get('game_time', 0)
         
         # Clear previous output (simple approach)
         # print("\n" + "="*60)
@@ -181,11 +181,11 @@ class GameClient:
         
         # print("="*60)
     
-    def send_heartbeat(self):
+    def send_heartbeat(self) -> None:
         """Send periodic ping to server to maintain connection"""
         while self.running:
             if self.connected:
-                ping_msg = {'type': 'ping'}
+                ping_msg: Dict[str, str] = {'type': 'ping'}
                 try:
                     self.send_to_server(ping_msg)
                 except Exception as e:
@@ -193,25 +193,25 @@ class GameClient:
             
             time.sleep(2.0)
     
-    def update_player_data(self):
+    def update_player_data(self) -> None:
         """Send player direction to server"""
-        update_msg = {
+        update_msg: Dict[str, Any] = {
             'type': 'update',
             'data': self.player_data
         }
         
         self.send_to_server(update_msg)
     
-    def shoot(self):
+    def shoot(self) -> None:
         """Send shoot request to server"""
-        shoot_msg = {
+        shoot_msg: Dict[str, str] = {
             'type': 'shoot'
         }
         self.send_to_server(shoot_msg)
     
-    def respawn(self):
+    def respawn(self) -> None:
         """Request respawn from server"""
-        respawn_msg = {
+        respawn_msg: Dict[str, Any] = {
             'type': 'update',
             'data': {
                 'respawn': True
@@ -219,15 +219,15 @@ class GameClient:
         }
         self.send_to_server(respawn_msg)
     
-    def send_to_server(self, message: dict):
+    def send_to_server(self, message: Dict[str, Any]) -> None:
         """Send message to server"""
         data = json.dumps(message).encode('utf-8')
         self.socket.sendto(data, self.server_address)
     
-    def disconnect(self):
+    def disconnect(self) -> None:
         """Disconnect from server"""
         if self.connected:
-            disconnect_msg = {'type': 'disconnect'}
+            disconnect_msg: Dict[str, str] = {'type': 'disconnect'}
             try:
                 self.send_to_server(disconnect_msg)
             except:
@@ -236,17 +236,15 @@ class GameClient:
             self.connected = False
             print("\n👋 Disconnected from server")
     
-    def check_connection_timeout(self):
+    def check_connection_timeout(self) -> None:
         """Check if connection has timed out"""
         if self.connected:
             time_since_update = time.time() - self.last_update_time
             if time_since_update > self.update_timeout:
                 print(f"⚠️  Connection timeout: No updates for {time_since_update:.1f}s")
                 self.connected = False
-                return True
-        return False
     
-    def run(self):
+    def run(self) -> None:
         """Main client loop - for background operation with GUI"""
         while self.running:
             self.check_connection_timeout()
@@ -254,14 +252,14 @@ class GameClient:
 
 class InputBox:
     """Simple input box for text entry"""
-    def __init__(self, x, y, w, h, text=''):
+    def __init__(self, x: int, y: int, w: int, h: int, text: str = '') -> None:
         self.rect = pygame.Rect(x, y, w, h)
         self.color = GRAY
         self.text = text
         self.font = pygame.font.Font(None, 32)
         self.active = False
         
-    def handle_event(self, event):
+    def handle_event(self, event: Any) -> bool:
         if event.type == pygame.MOUSEBUTTONDOWN:
             self.active = self.rect.collidepoint(event.pos)
             self.color = BLUE if self.active else GRAY
@@ -274,7 +272,7 @@ class InputBox:
                 self.text += event.unicode
         return False
     
-    def draw(self, screen):
+    def draw(self, screen: Any) -> None:
         # Draw box
         pygame.draw.rect(screen, self.color, self.rect, 2)
         pygame.draw.rect(screen, LIGHT_GRAY, self.rect)
@@ -285,7 +283,7 @@ class InputBox:
 
 class Button:
     """Simple button widget"""
-    def __init__(self, x, y, w, h, text, color=BLUE):
+    def __init__(self, x: int, y: int, w: int, h: int, text: str, color: Tuple[int, int, int] = BLUE) -> None:
         self.rect = pygame.Rect(x, y, w, h)
         self.text = text
         self.color = color
@@ -293,7 +291,7 @@ class Button:
         self.font = pygame.font.Font(None, 32)
         self.hovered = False
         
-    def handle_event(self, event):
+    def handle_event(self, event: Any) -> bool:
         if event.type == pygame.MOUSEMOTION:
             self.hovered = self.rect.collidepoint(event.pos)
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -301,7 +299,7 @@ class Button:
                 return True
         return False
     
-    def draw(self, screen):
+    def draw(self, screen: Any) -> None:
         color = self.hover_color if self.hovered else self.color
         pygame.draw.rect(screen, color, self.rect)
         pygame.draw.rect(screen, BLACK, self.rect, 2)
@@ -363,7 +361,7 @@ class GameGUI:
         self.font = pygame.font.Font(None, 32)
         self.small_font = pygame.font.Font(None, 24)
     
-    def load_settings(self):
+    def load_settings(self) -> Dict[str, Any]:
         """Load settings from file"""
         if os.path.exists(self.settings_file):
             try:
@@ -373,7 +371,7 @@ class GameGUI:
                 pass
         return {'player_names': [], 'last_player_name': '', 'server_ip': '129.151.219.36'}
     
-    def save_settings(self):
+    def save_settings(self) -> None:
         """Save settings to file"""
         try:
             with open(self.settings_file, 'w') as f:
@@ -381,7 +379,7 @@ class GameGUI:
         except Exception as e:
             print(f"Error saving settings: {e}")
     
-    def add_player_name(self, name):
+    def add_player_name(self, name: str) -> None:
         """Add player name to history"""
         if name and name.strip():
             name = name.strip()
@@ -396,7 +394,7 @@ class GameGUI:
             self.settings['last_player_name'] = name
             self.save_settings()
         
-    def draw_connection_screen(self):
+    def draw_connection_screen(self) -> None:
         """Draw the connection screen"""
         self.screen.fill(WHITE)
         
@@ -449,7 +447,7 @@ class GameGUI:
         inst_rect = instruction.get_rect(center=(SCREEN_WIDTH // 2, 550))
         self.screen.blit(instruction, inst_rect)
     
-    def draw_connecting_screen(self):
+    def draw_connecting_screen(self) -> None:
         """Draw the connecting screen"""
         self.screen.fill(WHITE)
         
@@ -464,12 +462,12 @@ class GameGUI:
         dots_rect = dots_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 60))
         self.screen.blit(dots_text, dots_rect)
     
-    def update_snake_game(self):
+    def update_snake_game(self) -> None:
         """Game logic is handled by server, client just displays"""
         # No client-side game logic needed - server handles everything
         pass
     
-    def draw_game_screen(self):
+    def draw_game_screen(self) -> None:
         """Draw the game screen with snake game"""
         self.screen.fill(WHITE)
         
@@ -706,7 +704,7 @@ class GameGUI:
         controls = self.small_font.render("Arrow Keys: Move | SPACE: Shoot | R: Respawn | ESC: Quit", True, BLACK)
         self.screen.blit(controls, (20, controls_y))
     
-    def handle_connection_events(self, event):
+    def handle_connection_events(self, event: Any) -> None:
         """Handle events on connection screen"""
         # Handle dropdown button
         if self.dropdown_button.handle_event(event):
@@ -738,7 +736,7 @@ class GameGUI:
             # Start connection
             self.start_connection()
     
-    def handle_game_events(self, event):
+    def handle_game_events(self, event: Any) -> None:
         """Handle events during game"""
         if not self.client:
             return
@@ -783,7 +781,7 @@ class GameGUI:
                 self.client.player_data['direction'] = new_direction
                 self.client.update_player_data()
     
-    def start_connection(self):
+    def start_connection(self) -> None:
         """Start connection to server"""
         server_ip = self.ip_input.text.strip()
         player_name = self.name_input.text.strip()
@@ -811,7 +809,7 @@ class GameGUI:
                                  daemon=True)
         thread.start()
     
-    def connect_to_server(self, server_ip, player_name):
+    def connect_to_server(self, server_ip: str, player_name: str) -> None:
         """Connect to server in background"""
         try:
             self.client = GameClient(server_ip, 50000, player_name)
@@ -842,7 +840,7 @@ class GameGUI:
             self.state = 'connection'
             self.connection_error = f"Error: {str(e)[:30]}"
     
-    def run(self):
+    def run(self) -> None:
         """Main GUI loop"""
         while self.running:
             # Handle events
@@ -881,7 +879,7 @@ class GameGUI:
         
         pygame.quit()
 
-def main():
+def main() -> None:
     # print("="*60)
     # print("🎮 GAME CLIENT - GUI Mode")
     # print("="*60)

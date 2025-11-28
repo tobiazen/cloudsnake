@@ -2,17 +2,22 @@ import socket
 import threading
 import time
 import json
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, List, Set, Optional
+
+# Type alias for player data dictionary
+PlayerData = Dict[str, Any]
+# Type alias for bullet data dictionary  
+BulletData = Dict[str, Any]
 
 class GameServer:
-    def __init__(self, host: str = '0.0.0.0', port: int = 50000):
+    def __init__(self, host: str = '0.0.0.0', port: int = 50000) -> None:
         self.host = host
         self.port = port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((self.host, self.port))
         
         # Store connected clients: {client_address: {player_data}}
-        self.clients: Dict[Tuple[str, int], dict] = {}
+        self.clients: Dict[Tuple[str, int], PlayerData] = {}
         
         # Game state
         self.game_state: Dict[str, Any] = {
@@ -28,16 +33,16 @@ class GameServer:
         self.grid_width = 40
         self.grid_height = 30
         # Active bricks in the game (list for serialization) + set for O(1) checks
-        self.bricks: list[list[int]] = []
-        self.bricks_set: set[Tuple[int, int]] = set()
+        self.bricks: List[List[int]] = []
+        self.bricks_set: Set[Tuple[int, int]] = set()
         # Bullet bricks (special bricks that give bullets)
-        self.bullet_bricks: list[list[int]] = []
-        self.bullet_bricks_set: set[Tuple[int, int]] = set()
+        self.bullet_bricks: List[List[int]] = []
+        self.bullet_bricks_set: Set[Tuple[int, int]] = set()
         # Active bullets: list of dicts with {pos: (x,y), direction: str, owner: client_address}
-        self.bullets: list[dict] = []
+        self.bullets: List[BulletData] = []
         
         # Color pool for players
-        self.available_colors = [
+        self.available_colors: List[Tuple[int, int, int]] = [
             (0, 255, 0),      # Green
             (255, 0, 0),      # Red
             (0, 100, 255),    # Blue
@@ -55,7 +60,7 @@ class GameServer:
             (128, 255, 255),  # Light Cyan
             (255, 128, 255),  # Light Magenta
         ]
-        self.used_colors = set()  # Track colors currently in use
+        self.used_colors: Set[Tuple[int, int, int]] = set()  # Track colors currently in use
         self.max_players = 16  # Maximum number of players allowed
         
         self.running = False
@@ -63,7 +68,7 @@ class GameServer:
         # Cached occupied cells for quick membership checks
         self.occupied_cells: set[Tuple[int, int]] = set()
         
-    def start(self):
+    def start(self) -> None:
         """Start the server"""
         self.running = True
         
@@ -78,7 +83,7 @@ class GameServer:
         # Start listening for client messages
         self.listen()
     
-    def listen(self):
+    def listen(self) -> None:
         """Listen for incoming UDP messages from clients"""
         while self.running:
             try:
@@ -88,14 +93,14 @@ class GameServer:
                 # Handle different message types
                 self.handle_client_message(client_address, message)
                 
-            except json.JSONDecodeError:
-                print(f"❌ Received invalid JSON from {client_address}")
+            except json.JSONDecodeError as e:
+                print(f"❌ Received invalid JSON: {e}")
             except Exception as e:
                 print(f"❌ Error receiving data: {e}")
     
-    def handle_client_message(self, client_address: Tuple[str, int], message: dict):
+    def handle_client_message(self, client_address: Tuple[str, int], message: Dict[str, Any]) -> None:
         """Handle messages from clients"""
-        message_type = message.get('type', '')
+        message_type: str = message.get('type', '')
         
         if message_type == 'connect':
             self.handle_connect(client_address, message)
@@ -115,10 +120,10 @@ class GameServer:
         import random
         
         # Use cached occupied cells
-        occupied = self.occupied_cells
+        occupied: Set[Tuple[int, int]] = self.occupied_cells
         
         # Check each direction for safety (2 steps ahead)
-        safe_directions = []
+        safe_directions: List[str] = []
         
         # UP: check y-1 and y-2
         if y >= 2 and (x, y-1) not in occupied and (x, y-2) not in occupied:
@@ -141,7 +146,7 @@ class GameServer:
             return random.choice(safe_directions)
         else:
             # Fallback: choose direction away from nearest wall
-            directions = []
+            directions: List[str] = []
             if y >= 2:
                 directions.append('UP')
             if y < self.grid_height - 2:
@@ -152,9 +157,9 @@ class GameServer:
                 directions.append('RIGHT')
             return random.choice(directions) if directions else 'RIGHT'
     
-    def handle_connect(self, client_address: Tuple[str, int], message: dict):
-        """Handle client connection"""
-        player_name = message.get('player_name', f'Player_{len(self.clients) + 1}')
+    def handle_connect(self, client_address: Tuple[str, int], message: Dict[str, Any]) -> None:
+        """Handle new client connections"""
+        player_name: str = message.get('player_name', f'Player_{len(self.clients) + 1}')
         
         if client_address not in self.clients:
             # Check if server is full
@@ -162,7 +167,7 @@ class GameServer:
                 # print(f"⛔ Server full! Rejected connection from {player_name} at {client_address[0]}:{client_address[1]}")
                 
                 # Send server full message
-                full_msg = {
+                full_msg: Dict[str, Any] = {
                     'type': 'server_full',
                     'message': f'Server is full ({self.max_players}/{self.max_players} players). Please try again later.',
                     'max_players': self.max_players,
@@ -221,7 +226,7 @@ class GameServer:
             # print(f"   Total clients: {len(self.clients)}\n")
             
             # Send welcome message
-            welcome_msg = {
+            welcome_msg: Dict[str, Any] = {
                 'type': 'welcome',
                 'message': f'Welcome to the game, {player_name}!',
                 'player_id': str(client_address),
@@ -234,10 +239,10 @@ class GameServer:
             self.clients[client_address]['last_seen'] = time.time()
             # print(f"🔄 Client reconnected: {player_name} from {client_address[0]}:{client_address[1]}")
     
-    def handle_disconnect(self, client_address: Tuple[str, int]):
+    def handle_disconnect(self, client_address: Tuple[str, int]) -> None:
         """Handle client disconnection"""
         if client_address in self.clients:
-            player_name = self.clients[client_address]['player_name']
+            _player_name = self.clients[client_address]['player_name']
             player_color = self.clients[client_address].get('color')
             
             # Free up the color for reuse
@@ -257,11 +262,11 @@ class GameServer:
             # print(f"   Color RGB{player_color} is now available")
             # print(f"   Total clients: {len(self.clients)}\n")
     
-    def handle_player_update(self, client_address: Tuple[str, int], message: dict):
+    def handle_player_update(self, client_address: Tuple[str, int], message: Dict[str, Any]) -> None:
         """Handle player state updates (direction changes, respawns)"""
         if client_address in self.clients:
             # Update player data
-            player_data = message.get('data', {})
+            player_data: Dict[str, Any] = message.get('data', {})
             
             # Only allow certain updates from client (direction, respawn)
             if 'direction' in player_data:
@@ -298,7 +303,7 @@ class GameServer:
             
             # Update game state will happen in the game loop
     
-    def calculate_brick_count(self):
+    def calculate_brick_count(self) -> int:
         """Calculate how many bricks should be active based on player count"""
         player_count = len([c for c in self.clients.values() if c.get('alive', True)])
         if player_count == 0:
@@ -309,7 +314,7 @@ class GameServer:
             # 2-3 players: 2 bricks, 4-5 players: 3 bricks, etc.
             return 1 + ((player_count - 1) // 2) + 1
     
-    def spawn_brick(self):
+    def spawn_brick(self) -> bool:
         """Spawn a brick at a random empty location (5% chance of bullet brick)"""
         import random
         
@@ -338,7 +343,7 @@ class GameServer:
         # print(f"⚠️  Could not find empty space for brick")
         return False
     
-    def update_bricks(self):
+    def update_bricks(self) -> None:
         """Update brick count based on player count"""
         required_bricks = self.calculate_brick_count()
         
@@ -361,7 +366,7 @@ class GameServer:
                 self.bullet_bricks_set.discard((removed[0], removed[1]))
             total_bricks = len(self.bricks) + len(self.bullet_bricks)
     
-    def check_brick_collection(self, client_address, snake):
+    def check_brick_collection(self, client_address: Tuple[str, int], snake: List[Tuple[int, int]]) -> Optional[str]:
         """Check if snake head collected a brick or bullet brick.
         Returns 'regular' for regular brick, 'bullet' for bullet brick, or None."""
         if not snake:
@@ -398,7 +403,7 @@ class GameServer:
         
         return None
     
-    def handle_shoot(self, client_address: Tuple[str, int]):
+    def handle_shoot(self, client_address: Tuple[str, int]) -> None:
         """Handle shoot request from client"""
         if client_address in self.clients:
             client_data = self.clients[client_address]
@@ -423,20 +428,20 @@ class GameServer:
             direction = client_data.get('direction', 'RIGHT')
             
             # Create bullet at head position moving in player's direction
-            bullet = {
+            bullet: BulletData = {
                 'pos': list(head),  # [x, y] for JSON serialization
                 'direction': direction,
                 'owner': str(client_address)
             }
             self.bullets.append(bullet)
     
-    def update_bullets(self):
+    def update_bullets(self) -> None:
         """Move bullets and check for collisions"""
-        bullets_to_remove = []
+        bullets_to_remove: List[int] = []
         
         for i, bullet in enumerate(self.bullets):
             x, y = bullet['pos']
-            direction = bullet['direction']
+            direction: str = bullet['direction']
             
             # Move bullet twice (double speed)
             for _ in range(2):
@@ -460,7 +465,7 @@ class GameServer:
                 
                 # Check collision with snakes
                 hit_occurred = False
-                for client_address, client_data in self.clients.items():
+                for _bullet_client_address, client_data in self.clients.items():
                     if not client_data.get('alive', True):
                         continue
                     
@@ -517,16 +522,16 @@ class GameServer:
             if i < len(self.bullets):
                 self.bullets.pop(i)
     
-    def handle_ping(self, client_address: Tuple[str, int]):
+    def handle_ping(self, client_address: Tuple[str, int]) -> None:
         """Handle ping from client"""
         if client_address in self.clients:
             self.clients[client_address]['last_seen'] = time.time()
             
             # Send pong response
-            pong_msg = {'type': 'pong', 'timestamp': time.time()}
+            pong_msg: Dict[str, Any] = {'type': 'pong', 'timestamp': time.time()}
             self.send_to_client(client_address, pong_msg)
     
-    def update_game_logic(self):
+    def update_game_logic(self) -> None:
         """Update snake positions and check collisions"""
         
         for client_address, client_data in list(self.clients.items()):
@@ -607,13 +612,13 @@ class GameServer:
             
             self.clients[client_address]['snake'] = snake
     
-    def broadcast_game_state(self):
+    def broadcast_game_state(self) -> None:
         """Broadcast game state to all connected clients at 2Hz"""
         while self.running:
             if self.clients:
                 # Rebuild occupied_cells from alive players once per tick (safety sync)
-                occ = set()
-                for addr, data in self.clients.items():
+                occ: Set[Tuple[int, int]] = set()
+                for _addr, data in self.clients.items():
                     if data.get('alive', True):
                         occ.update(data.get('snake_set', set()))
                 self.occupied_cells = occ
@@ -632,10 +637,10 @@ class GameServer:
                 self.game_state['game_time'] += self.broadcast_interval
                 
                 # Rebuild players sub-dict excluding non-serializable fields
-                players_snapshot = {}
+                players_snapshot: Dict[str, PlayerData] = {}
                 for client_address, client_data in self.clients.items():
                     # Build a filtered dict (exclude snake_set)
-                    filtered = {
+                    filtered: PlayerData = {
                         'player_name': client_data.get('player_name'),
                         'connected_at': client_data.get('connected_at'),
                         'last_seen': client_data.get('last_seen'),
@@ -655,13 +660,13 @@ class GameServer:
                 self.game_state['bullets'] = self.bullets.copy()
                 
                 # Prepare broadcast message
-                broadcast_msg = {
+                broadcast_msg: Dict[str, Any] = {
                     'type': 'game_state',
                     'state': self.game_state
                 }
                 
                 # Send to all connected clients
-                disconnected = []
+                disconnected: List[Tuple[str, int]] = []
                 for client_address in self.clients:
                     try:
                         self.send_to_client(client_address, broadcast_msg)
@@ -674,8 +679,8 @@ class GameServer:
                     self.handle_disconnect(client_address)
                 
                 # Check for inactive clients (timeout after 10 seconds)
-                current_time = time.time()
-                inactive = []
+                current_time: float = time.time()
+                inactive: List[Tuple[str, int]] = []
                 for client_address, client_data in self.clients.items():
                     if current_time - client_data['last_seen'] > 10:
                         inactive.append(client_address)
@@ -686,12 +691,12 @@ class GameServer:
             
             time.sleep(self.broadcast_interval)
     
-    def send_to_client(self, client_address: Tuple[str, int], message: dict):
+    def send_to_client(self, client_address: Tuple[str, int], message: Dict[str, Any]) -> None:
         """Send message to specific client"""
         data = json.dumps(message).encode('utf-8')
         self.socket.sendto(data, client_address)
     
-    def stop(self):
+    def stop(self) -> None:
         """Stop the server"""
         self.running = False
         self.socket.close()
