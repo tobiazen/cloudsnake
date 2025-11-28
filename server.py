@@ -25,7 +25,9 @@ class GameServer:
         # Game settings
         self.grid_width = 40
         self.grid_height = 30
-        self.bricks = []  # Active bricks in the game
+        # Active bricks in the game (list for serialization) + set for O(1) checks
+        self.bricks: list[list[int]] = []
+        self.bricks_set: set[Tuple[int, int]] = set()
         
         # Color pool for players
         self.available_colors = [
@@ -51,6 +53,8 @@ class GameServer:
         
         self.running = False
         self.broadcast_interval = 0.5  # 2Hz = 0.5 seconds
+        # Cached occupied cells for quick membership checks
+        self.occupied_cells: set[Tuple[int, int]] = set()
         
     def start(self):
         """Start the server"""
@@ -101,16 +105,8 @@ class GameServer:
         """Get a safe initial direction that won't hit walls or other players within 2 steps"""
         import random
         
-        # Collect all occupied positions from other players
-        occupied = set()
-        for client_data in self.clients.values():
-            if client_data.get('alive', True):
-                snake = client_data.get('snake', [])
-                for segment in snake:
-                    if isinstance(segment, tuple):
-                        occupied.add(segment)
-                    else:
-                        occupied.add(tuple(segment))
+        # Use cached occupied cells
+        occupied = self.occupied_cells
         
         # Check each direction for safety (2 steps ahead)
         safe_directions = []
@@ -189,15 +185,18 @@ class GameServer:
             # Random starting position for snake
             start_x = random.randint(5, 35)
             start_y = random.randint(5, 25)
-            
+        
             # Get a safe initial direction
             safe_direction = self.get_safe_direction(start_x, start_y)
-            
+        
+            # Normalize snake storage to tuples and maintain a per-player set
+            start_pos = (start_x, start_y)
             self.clients[client_address] = {
                 'player_name': player_name,
                 'connected_at': time.time(),
                 'last_seen': time.time(),
-                'snake': [(start_x, start_y)],
+                'snake': [start_pos],
+                'snake_set': {start_pos},
                 'direction': safe_direction,
                 'score': 0,
                 'alive': True,
@@ -235,6 +234,9 @@ class GameServer:
             if player_color and player_color in self.used_colors:
                 self.used_colors.remove(player_color)
             
+            # Remove occupied cells of this player
+            snake_set = self.clients[client_address].get('snake_set', set())
+            self.occupied_cells.difference_update(snake_set)
             del self.clients[client_address]
             
             # Remove from game state
@@ -268,10 +270,17 @@ class GameServer:
                 # Get a safe initial direction
                 safe_direction = self.get_safe_direction(start_x, start_y)
                 
-                self.clients[client_address]['snake'] = [(start_x, start_y)]
+                start_pos = (start_x, start_y)
+                # Update snake and snake_set
+                old_set = self.clients[client_address].get('snake_set', set())
+                self.occupied_cells.difference_update(old_set)
+                self.clients[client_address]['snake'] = [start_pos]
+                self.clients[client_address]['snake_set'] = {start_pos}
                 self.clients[client_address]['direction'] = safe_direction
                 self.clients[client_address]['score'] = new_score
                 self.clients[client_address]['alive'] = True
+                # Add new occupied cell
+                self.occupied_cells.add(start_pos)
                 # print(f"🔄 {self.clients[client_address]['player_name']} respawned (score: {previous_score} → {new_score})")
             
             self.clients[client_address]['last_seen'] = time.time()
@@ -293,19 +302,9 @@ class GameServer:
         """Spawn a brick at a random empty location"""
         import random
         
-        # Collect all occupied positions
-        occupied = set()
-        for client_data in self.clients.values():
-            snake = client_data.get('snake', [])
-            for segment in snake:
-                if isinstance(segment, tuple):
-                    occupied.add(segment)
-                else:
-                    occupied.add(tuple(segment))
-        
-        # Add existing bricks to occupied
-        for brick in self.bricks:
-            occupied.add(tuple(brick))
+        # Use cached occupied cells and bricks_set
+        occupied = set(self.occupied_cells)
+        occupied.update(self.bricks_set)
         
         # Find random empty position
         max_attempts = 100
@@ -316,7 +315,7 @@ class GameServer:
             
             if pos not in occupied:
                 self.bricks.append([x, y])
-                # print(f"🧱 Brick spawned at ({x}, {y})")
+                self.bricks_set.add(pos)
                 return True
         
         # print(f"⚠️  Could not find empty space for brick")
@@ -334,29 +333,27 @@ class GameServer:
         while len(self.bricks) > required_bricks:
             if self.bricks:
                 removed = self.bricks.pop()
-                # print(f"🧱 Brick removed from ({removed[0]}, {removed[1]})")
+                self.bricks_set.discard((removed[0], removed[1]))
     
     def check_brick_collection(self, client_address, snake):
         """Check if snake head collected a brick"""
         if not snake:
             return False
         
-        head = tuple(snake[0]) if isinstance(snake[0], list) else snake[0]
+        head = snake[0]
         
-        for i, brick in enumerate(self.bricks):
-            brick_pos = tuple(brick)
-            if head == brick_pos:
-                # Snake collected brick
-                client_data = self.clients[client_address]
-                # print(f"🎉 {client_data['player_name']} collected a brick!")
-                
-                # Remove the brick
-                self.bricks.pop(i)
-                
-                # Spawn new brick
-                self.spawn_brick()
-                
-                return True
+        # O(1) brick collection check
+        if head in self.bricks_set:
+            # Remove the brick from both structures
+            self.bricks_set.discard(head)
+            # Also remove from list (find and remove once)
+            for i, brick in enumerate(self.bricks):
+                if (brick[0], brick[1]) == head:
+                    self.bricks.pop(i)
+                    break
+            # Spawn new brick
+            self.spawn_brick()
+            return True
         
         return False
     
@@ -403,28 +400,26 @@ class GameServer:
                 # print(f"💀 {client_data['player_name']} hit a wall!")
                 continue
             
-            # Check collision with own snake
-            if new_head in snake:
+            # Check collision with own snake via set membership
+            if new_head in client_data.get('snake_set', set()):
                 client_data['alive'] = False
                 # print(f"💀 {client_data['player_name']} hit themselves!")
                 continue
             
-            # Check collision with other players' snakes
+            # Check collision with other players' snakes using global occupied cells
             collision = False
-            for other_address, other_data in self.clients.items():
-                if other_address != client_address and other_data.get('alive', True):
-                    other_snake = other_data.get('snake', [])
-                    if new_head in [tuple(pos) if isinstance(pos, list) else pos for pos in other_snake]:
-                        client_data['alive'] = False
-                        # print(f"💀 {client_data['player_name']} hit {other_data['player_name']}'s snake!")
-                        collision = True
-                        break
+            if new_head in self.occupied_cells:
+                # If it's in occupied, ensure it's not own body (already checked) and belongs to another
+                collision = True
             
             if collision:
                 continue
             
             # Add new head
             snake.insert(0, new_head)
+            # Update per-player set and global occupied
+            client_data.setdefault('snake_set', set()).add(new_head)
+            self.occupied_cells.add(new_head)
             
             # Check if collected a brick
             collected_brick = self.check_brick_collection(client_address, snake)
@@ -434,7 +429,10 @@ class GameServer:
                 client_data['score'] += 100  # Bonus points for collecting brick
             else:
                 # Normal movement (remove tail)
-                snake.pop()
+                tail = snake.pop()
+                # Update sets for tail removal
+                client_data.get('snake_set', set()).discard(tail)
+                self.occupied_cells.discard(tail)
             
             # Increase score for each move
             client_data['score'] += 1
@@ -445,6 +443,13 @@ class GameServer:
         """Broadcast game state to all connected clients at 2Hz"""
         while self.running:
             if self.clients:
+                # Rebuild occupied_cells from alive players once per tick (safety sync)
+                occ = set()
+                for addr, data in self.clients.items():
+                    if data.get('alive', True):
+                        occ.update(data.get('snake_set', set()))
+                self.occupied_cells = occ
+                
                 # Update brick count based on player count
                 self.update_bricks()
                 
@@ -455,9 +460,22 @@ class GameServer:
                 self.game_state['timestamp'] = time.time()
                 self.game_state['game_time'] += self.broadcast_interval
                 
-                # Update all players in game state
+                # Rebuild players sub-dict excluding non-serializable fields
+                players_snapshot = {}
                 for client_address, client_data in self.clients.items():
-                    self.game_state['players'][str(client_address)] = client_data.copy()
+                    # Build a filtered dict (exclude snake_set)
+                    filtered = {
+                        'player_name': client_data.get('player_name'),
+                        'connected_at': client_data.get('connected_at'),
+                        'last_seen': client_data.get('last_seen'),
+                        'snake': client_data.get('snake'),  # list of tuple positions OK (tuples JSON → lists)
+                        'direction': client_data.get('direction'),
+                        'score': client_data.get('score'),
+                        'alive': client_data.get('alive'),
+                        'color': client_data.get('color')
+                    }
+                    players_snapshot[str(client_address)] = filtered
+                self.game_state['players'] = players_snapshot
                 
                 # Update bricks in game state
                 self.game_state['bricks'] = self.bricks.copy()
