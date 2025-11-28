@@ -18,6 +18,8 @@ class GameServer:
         self.game_state: Dict[str, Any] = {
             'players': {},
             'bricks': [],  # List of brick positions
+            'bullet_bricks': [],  # List of bullet brick positions
+            'bullets': [],  # List of active bullets
             'timestamp': 0,
             'game_time': 0
         }
@@ -28,6 +30,11 @@ class GameServer:
         # Active bricks in the game (list for serialization) + set for O(1) checks
         self.bricks: list[list[int]] = []
         self.bricks_set: set[Tuple[int, int]] = set()
+        # Bullet bricks (special bricks that give bullets)
+        self.bullet_bricks: list[list[int]] = []
+        self.bullet_bricks_set: set[Tuple[int, int]] = set()
+        # Active bullets: list of dicts with {pos: (x,y), direction: str, owner: client_address}
+        self.bullets: list[dict] = []
         
         # Color pool for players
         self.available_colors = [
@@ -98,6 +105,8 @@ class GameServer:
             self.handle_player_update(client_address, message)
         elif message_type == 'ping':
             self.handle_ping(client_address)
+        elif message_type == 'shoot':
+            self.handle_shoot(client_address)
         else:
             pass  # print(f"⚠️  Unknown message type: {message_type} from {client_address}")
     
@@ -200,7 +209,8 @@ class GameServer:
                 'direction': safe_direction,
                 'score': 0,
                 'alive': True,
-                'color': color
+                'color': color,
+                'bullets': 0  # Starting bullet count
             }
             
             # Add to game state
@@ -279,6 +289,7 @@ class GameServer:
                 self.clients[client_address]['direction'] = safe_direction
                 self.clients[client_address]['score'] = new_score
                 self.clients[client_address]['alive'] = True
+                self.clients[client_address]['bullets'] = 0
                 # Add new occupied cell
                 self.occupied_cells.add(start_pos)
                 # print(f"🔄 {self.clients[client_address]['player_name']} respawned (score: {previous_score} → {new_score})")
@@ -299,12 +310,13 @@ class GameServer:
             return 1 + ((player_count - 1) // 2) + 1
     
     def spawn_brick(self):
-        """Spawn a brick at a random empty location"""
+        """Spawn a brick at a random empty location (5% chance of bullet brick)"""
         import random
         
         # Use cached occupied cells and bricks_set
         occupied = set(self.occupied_cells)
         occupied.update(self.bricks_set)
+        occupied.update(self.bullet_bricks_set)
         
         # Find random empty position
         max_attempts = 100
@@ -314,8 +326,13 @@ class GameServer:
             pos = (x, y)
             
             if pos not in occupied:
-                self.bricks.append([x, y])
-                self.bricks_set.add(pos)
+                # 5% chance of spawning a bullet brick
+                if random.random() < 0.05:
+                    self.bullet_bricks.append([x, y])
+                    self.bullet_bricks_set.add(pos)
+                else:
+                    self.bricks.append([x, y])
+                    self.bricks_set.add(pos)
                 return True
         
         # print(f"⚠️  Could not find empty space for brick")
@@ -325,24 +342,48 @@ class GameServer:
         """Update brick count based on player count"""
         required_bricks = self.calculate_brick_count()
         
+        # Count total bricks (regular + bullet)
+        total_bricks = len(self.bricks) + len(self.bullet_bricks)
+        
         # Add bricks if needed
-        while len(self.bricks) < required_bricks:
+        while total_bricks < required_bricks:
             self.spawn_brick()
+            total_bricks = len(self.bricks) + len(self.bullet_bricks)
         
         # Remove excess bricks if needed (e.g., when players leave)
-        while len(self.bricks) > required_bricks:
+        while total_bricks > required_bricks:
+            # Remove regular bricks first, then bullet bricks
             if self.bricks:
                 removed = self.bricks.pop()
                 self.bricks_set.discard((removed[0], removed[1]))
+            elif self.bullet_bricks:
+                removed = self.bullet_bricks.pop()
+                self.bullet_bricks_set.discard((removed[0], removed[1]))
+            total_bricks = len(self.bricks) + len(self.bullet_bricks)
     
     def check_brick_collection(self, client_address, snake):
-        """Check if snake head collected a brick"""
+        """Check if snake head collected a brick or bullet brick.
+        Returns 'regular' for regular brick, 'bullet' for bullet brick, or None."""
         if not snake:
-            return False
+            return None
         
         head = snake[0]
         
-        # O(1) brick collection check
+        # Check for bullet brick collection
+        if head in self.bullet_bricks_set:
+            # Remove the bullet brick from both structures
+            self.bullet_bricks_set.discard(head)
+            for i, brick in enumerate(self.bullet_bricks):
+                if (brick[0], brick[1]) == head:
+                    self.bullet_bricks.pop(i)
+                    break
+            # Give player a bullet
+            self.clients[client_address]['bullets'] = self.clients[client_address].get('bullets', 0) + 1
+            # Spawn new brick
+            self.spawn_brick()
+            return 'bullet'
+        
+        # Check for regular brick collection
         if head in self.bricks_set:
             # Remove the brick from both structures
             self.bricks_set.discard(head)
@@ -353,9 +394,128 @@ class GameServer:
                     break
             # Spawn new brick
             self.spawn_brick()
-            return True
+            return 'regular'
         
-        return False
+        return None
+    
+    def handle_shoot(self, client_address: Tuple[str, int]):
+        """Handle shoot request from client"""
+        if client_address in self.clients:
+            client_data = self.clients[client_address]
+            
+            # Check if player has bullets and is alive
+            if not client_data.get('alive', True):
+                return
+            
+            bullets_count = client_data.get('bullets', 0)
+            if bullets_count <= 0:
+                return
+            
+            # Deduct bullet
+            self.clients[client_address]['bullets'] = bullets_count - 1
+            
+            # Get player position and direction
+            snake = client_data.get('snake', [])
+            if not snake:
+                return
+            
+            head = snake[0]
+            direction = client_data.get('direction', 'RIGHT')
+            
+            # Create bullet at head position moving in player's direction
+            bullet = {
+                'pos': list(head),  # [x, y] for JSON serialization
+                'direction': direction,
+                'owner': str(client_address)
+            }
+            self.bullets.append(bullet)
+    
+    def update_bullets(self):
+        """Move bullets and check for collisions"""
+        bullets_to_remove = []
+        
+        for i, bullet in enumerate(self.bullets):
+            x, y = bullet['pos']
+            direction = bullet['direction']
+            
+            # Move bullet twice (double speed)
+            for _ in range(2):
+                # Calculate new position
+                if direction == 'UP':
+                    y -= 1
+                elif direction == 'DOWN':
+                    y += 1
+                elif direction == 'LEFT':
+                    x -= 1
+                elif direction == 'RIGHT':
+                    x += 1
+                
+                # Check wall collision
+                if x < 0 or x >= self.grid_width or y < 0 or y >= self.grid_height:
+                    bullets_to_remove.append(i)
+                    break
+                
+                bullet['pos'] = [x, y]
+                bullet_pos = (x, y)
+                
+                # Check collision with snakes
+                hit_occurred = False
+                for client_address, client_data in self.clients.items():
+                    if not client_data.get('alive', True):
+                        continue
+                    
+                    snake = client_data.get('snake', [])
+                    if not snake:
+                        continue
+                    
+                    # Check if bullet hit this snake
+                    if bullet_pos in client_data.get('snake_set', set()):
+                        # Find the hit position in the snake
+                        hit_index = None
+                        for idx, segment in enumerate(snake):
+                            if segment == bullet_pos:
+                                hit_index = idx
+                                break
+                        
+                        if hit_index is not None:
+                            # Check if it's a headshot (index 0)
+                            if hit_index == 0:
+                                # Kill the snake and clean up
+                                client_data['alive'] = False
+                                client_data['bullets'] = 0
+                                
+                                # Remove snake from occupied cells
+                                snake_set = client_data.get('snake_set', set())
+                                self.occupied_cells.difference_update(snake_set)
+                                snake_set.clear()
+                                
+                                # print(f"💀 {client_data['player_name']} was headshotted!")
+                            else:
+                                # Truncate snake after hit position
+                                removed_segments = snake[hit_index:]
+                                snake[:] = snake[:hit_index]
+                                
+                                # Update snake_set
+                                snake_set = client_data.get('snake_set', set())
+                                for seg in removed_segments:
+                                    snake_set.discard(seg)
+                                    self.occupied_cells.discard(seg)
+                                
+                                # Deduct score (50 points per removed segment)
+                                score_deduction = len(removed_segments) * 50
+                                client_data['score'] = max(0, client_data.get('score', 0) - score_deduction)
+                        
+                        hit_occurred = True
+                        bullets_to_remove.append(i)
+                        break
+                
+                if hit_occurred:
+                    break
+        
+        # Remove bullets that hit something or went out of bounds
+        for i in reversed(sorted(set(bullets_to_remove))):
+            if i < len(self.bullets):
+                self.bullets.pop(i)
     
     def handle_ping(self, client_address: Tuple[str, int]):
         """Handle ping from client"""
@@ -397,12 +557,14 @@ class GameServer:
             if (new_head[0] < 0 or new_head[0] >= self.grid_width or
                 new_head[1] < 0 or new_head[1] >= self.grid_height):
                 client_data['alive'] = False
+                client_data['bullets'] = 0
                 # print(f"💀 {client_data['player_name']} hit a wall!")
                 continue
             
             # Check collision with own snake via set membership
             if new_head in client_data.get('snake_set', set()):
                 client_data['alive'] = False
+                client_data['bullets'] = 0
                 # print(f"💀 {client_data['player_name']} hit themselves!")
                 continue
             
@@ -424,9 +586,15 @@ class GameServer:
             # Check if collected a brick
             collected_brick = self.check_brick_collection(client_address, snake)
             
-            if collected_brick:
-                # Snake grows (don't remove tail)
+            if collected_brick == 'regular':
+                # Snake grows (don't remove tail) and award points
                 client_data['score'] += 100  # Bonus points for collecting brick
+            elif collected_brick == 'bullet':
+                # Bullet brick collected - remove tail (no growth, no bonus points)
+                tail = snake.pop()
+                # Update sets for tail removal
+                client_data.get('snake_set', set()).discard(tail)
+                self.occupied_cells.discard(tail)
             else:
                 # Normal movement (remove tail)
                 tail = snake.pop()
@@ -453,6 +621,9 @@ class GameServer:
                 # Update brick count based on player count
                 self.update_bricks()
                 
+                # Update bullets (move and check collisions)
+                self.update_bullets()
+                
                 # Update game logic (move snakes, check collisions)
                 self.update_game_logic()
                 
@@ -472,13 +643,16 @@ class GameServer:
                         'direction': client_data.get('direction'),
                         'score': client_data.get('score'),
                         'alive': client_data.get('alive'),
-                        'color': client_data.get('color')
+                        'color': client_data.get('color'),
+                        'bullets': client_data.get('bullets', 0)
                     }
                     players_snapshot[str(client_address)] = filtered
                 self.game_state['players'] = players_snapshot
                 
-                # Update bricks in game state
+                # Update bricks and bullets in game state
                 self.game_state['bricks'] = self.bricks.copy()
+                self.game_state['bullet_bricks'] = self.bullet_bricks.copy()
+                self.game_state['bullets'] = self.bullets.copy()
                 
                 # Prepare broadcast message
                 broadcast_msg = {

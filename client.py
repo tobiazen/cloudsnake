@@ -202,6 +202,13 @@ class GameClient:
         
         self.send_to_server(update_msg)
     
+    def shoot(self):
+        """Send shoot request to server"""
+        shoot_msg = {
+            'type': 'shoot'
+        }
+        self.send_to_server(shoot_msg)
+    
     def respawn(self):
         """Request respawn from server"""
         respawn_msg = {
@@ -573,6 +580,43 @@ class GameGUI:
                 )
                 pygame.draw.rect(self.screen, (255, 128, 0), brick_rect)  # Orange
                 pygame.draw.rect(self.screen, YELLOW, brick_rect, 2)  # Yellow border
+            
+            # Draw bullet bricks (special bricks that give bullets)
+            bullet_bricks = self.client.game_state.get('bullet_bricks', [])
+            
+            for brick in bullet_bricks:
+                if isinstance(brick, list):
+                    x, y = brick
+                else:
+                    x, y = brick
+                
+                # Draw bullet brick as blue square
+                brick_rect = pygame.Rect(
+                    self.game_offset_x + x * self.grid_size + 1,
+                    self.game_offset_y + y * self.grid_size + 1,
+                    self.grid_size - 2,
+                    self.grid_size - 2
+                )
+                pygame.draw.rect(self.screen, (100, 150, 255), brick_rect)  # Light blue
+                pygame.draw.rect(self.screen, (0, 100, 255), brick_rect, 2)  # Blue border
+            
+            # Draw bullets
+            bullets = self.client.game_state.get('bullets', [])
+            
+            for bullet in bullets:
+                pos = bullet.get('pos', [0, 0])
+                if isinstance(pos, list) and len(pos) >= 2:
+                    x, y = pos[0], pos[1]
+                else:
+                    x, y = pos
+                
+                # Draw bullet as small red circle
+                bullet_center = (
+                    self.game_offset_x + int(x * self.grid_size + self.grid_size // 2),
+                    self.game_offset_y + int(y * self.grid_size + self.grid_size // 2)
+                )
+                pygame.draw.circle(self.screen, RED, bullet_center, self.grid_size // 3)
+                pygame.draw.circle(self.screen, (255, 150, 150), bullet_center, self.grid_size // 4)
         
         # Check if current player is dead and show respawn button
         show_respawn = False
@@ -625,6 +669,7 @@ class GameGUI:
                 score = player_info.get('score', 0)
                 alive = player_info.get('alive', True)
                 snake_color = player_info.get('color', (255, 255, 255))
+                bullets = player_info.get('bullets', 0)
                 
                 # Truncate long names
                 if len(name) > 10:
@@ -647,14 +692,18 @@ class GameGUI:
                 score_text = self.small_font.render(f"Score: {score}", True, DARK_GRAY)
                 self.screen.blit(score_text, (panel_x + 5, y_offset + 18))
                 
-                y_offset += 40
+                # Show bullet count under score
+                bullets_text = self.small_font.render(f"Bullets: {bullets}", True, BLUE)
+                self.screen.blit(bullets_text, (panel_x + 5, y_offset + 36))
+                
+                y_offset += 58
                 
                 if y_offset > panel_y + SCREEN_HEIGHT - 200:
                     break
         
         # Controls info at bottom
         controls_y = SCREEN_HEIGHT - 50
-        controls = self.small_font.render("Arrow Keys: Move | ESC: Quit", True, BLACK)
+        controls = self.small_font.render("Arrow Keys: Move | SPACE: Shoot | R: Respawn | ESC: Quit", True, BLACK)
         self.screen.blit(controls, (20, controls_y))
     
     def handle_connection_events(self, event):
@@ -724,6 +773,10 @@ class GameGUI:
             elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
                 if current_direction != 'LEFT':
                     new_direction = 'RIGHT'
+            elif event.key == pygame.K_SPACE:
+                # Shoot a bullet
+                self.client.shoot()
+                return  # Don't send direction change
             
             # Send direction change to server
             if new_direction:

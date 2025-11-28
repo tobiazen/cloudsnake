@@ -7,6 +7,7 @@ A multiplayer snake game where players compete to collect bricks and grow their 
 - **Multiplayer**: Up to 16 players can connect simultaneously
 - **Real-time gameplay**: Server broadcasts game state at 2Hz (every 0.5 seconds)
 - **Dynamic brick spawning**: Bricks spawn based on the number of active players
+- **Shooting system**: Collect bullet bricks and shoot at opponents
 - **Respawn system**: Players can respawn after death, keeping half their score
 - **Color-coded players**: Each player gets a unique color
 - **GUI interface**: Clean pygame-based graphical interface
@@ -56,6 +57,7 @@ python client.py
   - `↓` or `S`: Move down
   - `←` or `A`: Move left
   - `→` or `D`: Move right
+- **SPACE**: Shoot a bullet (if you have bullets available)
 - **R**: Respawn after death (costs half your score)
 - **ESC**: Exit the game
 
@@ -72,20 +74,36 @@ python client.py
 2. **Growing**: Collect bricks (red squares) to grow your snake and increase your score
 3. **Scoring**: 
    - +1 point for each move
-   - +100 points for collecting a brick
-4. **Death**: You die if you:
+   - +100 points for collecting a regular brick
+4. **Shooting System**:
+   - **Bullet Bricks**: Light blue squares that spawn randomly (5% chance)
+   - **Collecting Bullet Bricks**: Gives you 1 bullet (doesn't grow your snake or award points)
+   - **Shooting**: Press SPACE to fire a bullet in your current direction
+   - **Bullet Mechanics**:
+     - Bullets travel at 2x snake speed
+     - **Headshot**: Hitting an opponent's head kills them instantly
+     - **Body Shot**: Hitting an opponent's body truncates their snake at the hit point (50 points deducted per removed segment)
+     - Bullets are removed when they hit a wall or a snake
+   - **Bullet Count**: Displayed in your player panel (under your score)
+5. **Death**: You die if you:
    - Hit a wall
    - Hit yourself
    - Hit another player's snake
-5. **Respawning**: After death, press `R` to respawn with half your previous score
-6. **Safe Spawn**: When spawning, your initial direction is chosen to avoid immediate collisions
+   - Get hit by a bullet in the head
+6. **Death Consequences**:
+   - All your bullets are lost
+   - Your snake is removed from the game board
+7. **Respawning**: After death, press `R` to respawn with half your previous score and zero bullets
+8. **Safe Spawn**: When spawning, your initial direction is chosen to avoid immediate collisions
 
 ### Game Screen
 
 - **Your snake**: Highlighted with a thicker outline
 - **Other players**: Different colored snakes
-- **Bricks**: Red squares scattered on the grid
-- **Scoreboard**: Displays all players' names and scores on the right side
+- **Regular Bricks**: Red squares scattered on the grid
+- **Bullet Bricks**: Light blue squares (give you bullets when collected)
+- **Active Bullets**: Small red circles moving across the grid
+- **Scoreboard**: Displays all players' names, scores, and bullet counts on the right side
 
 ## Network Configuration
 
@@ -153,6 +171,14 @@ For internet play:
 - 2-3 players: 2 bricks
 - 4-5 players: 3 bricks
 - And so on...
+
+### Shooting Mechanics
+
+- Bullet brick spawn chance: 5%
+- Bullet speed: 2x snake movement speed
+- Bullets per bullet brick: 1
+- Headshot: Instant kill
+- Body shot: Truncates snake, -50 points per removed segment
 
 ## Troubleshooting
 
