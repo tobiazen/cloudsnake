@@ -27,22 +27,32 @@ def build_executable() -> bool:
     
     print(f"Building executable for {system}...")
     
-    # PyInstaller command
+    # Base PyInstaller command
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--onefile",  # Single executable file
-        "--windowed",  # No console window (GUI mode)
         "--name", "SnakeGame",
-        "--icon=NONE",  # Could add icon later
-        "--add-data", "settings.json:." if system == "Windows" else "settings.json:.",
         "client.py"
     ]
     
-    # Add Windows-specific options
+    # Platform-specific options
     if system == "Windows":
         cmd.extend([
             "--noconsole",  # Hide console on Windows
+            "--windowed",  # GUI mode
         ])
+    elif system == "Darwin":  # macOS
+        # Don't use --windowed with --onefile on macOS (deprecated)
+        # Just create a regular executable
+        pass
+    else:  # Linux
+        cmd.append("--windowed")  # GUI mode
+    
+    # Add data files (settings.json)
+    if system == "Windows":
+        cmd.extend(["--add-data", "settings.json;."])
+    else:
+        cmd.extend(["--add-data", "settings.json:."])
     
     try:
         subprocess.check_call(cmd)
