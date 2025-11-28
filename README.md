@@ -23,15 +23,13 @@ A multiplayer snake game where players compete to collect bricks and grow their 
 
 ### Linux
 1. Download `SnakeGame-linux` from the [latest release](https://github.com/tobiazen/cloudsnake/releases/latest)
-2. Make it executable: `chmod +x SnakeGame-linux`
-3. Run: `./SnakeGame-linux`
-4. No Python or dependencies required!
+2. Run: `./SnakeGame-linux`
+3. No Python or dependencies required!
 
 ### macOS
 1. Download `SnakeGame-macos` from the [latest release](https://github.com/tobiazen/cloudsnake/releases/latest)
-2. Make it executable: `chmod +x SnakeGame-macos`
-3. Run: `./SnakeGame-macos`
-4. No Python or dependencies required!
+2. Run: `./SnakeGame-macos`
+3. No Python or dependencies required!
 
 **✨ Executables are automatically built for every commit!** The latest version is always available at the releases page.
 

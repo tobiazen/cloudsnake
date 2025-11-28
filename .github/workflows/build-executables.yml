@@ -56,6 +56,9 @@ jobs:
       - name: Build Linux executable
         run: python build_executable.py
 
+      - name: Make executable
+        run: chmod +x dist/SnakeGame
+
       - name: Upload Linux executable
         uses: actions/upload-artifact@v4
         with:
@@ -81,6 +84,9 @@ jobs:
 
       - name: Build macOS executable
         run: python build_executable.py
+
+      - name: Make executable
+        run: chmod +x dist/SnakeGame
 
       - name: Upload macOS executable
         uses: actions/upload-artifact@v4
