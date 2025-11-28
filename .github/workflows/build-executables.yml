@@ -56,14 +56,17 @@ jobs:
       - name: Build Linux executable
         run: python build_executable.py
 
-      - name: Make executable
-        run: chmod +x dist/SnakeGame
+      - name: Make executable and package
+        run: |
+          chmod +x dist/SnakeGame
+          cd dist
+          tar -czf SnakeGame-linux.tar.gz SnakeGame
 
       - name: Upload Linux executable
         uses: actions/upload-artifact@v4
         with:
           name: SnakeGame-Linux
-          path: dist/SnakeGame
+          path: dist/SnakeGame-linux.tar.gz
           retention-days: 90
 
   build-macos:
@@ -85,14 +88,17 @@ jobs:
       - name: Build macOS executable
         run: python build_executable.py
 
-      - name: Make executable
-        run: chmod +x dist/SnakeGame
+      - name: Make executable and package
+        run: |
+          chmod +x dist/SnakeGame
+          cd dist
+          tar -czf SnakeGame-macos.tar.gz SnakeGame
 
       - name: Upload macOS executable
         uses: actions/upload-artifact@v4
         with:
           name: SnakeGame-macOS
-          path: dist/SnakeGame
+          path: dist/SnakeGame-macos.tar.gz
           retention-days: 90
 
   create-release:
@@ -118,13 +124,6 @@ jobs:
           name: SnakeGame-macOS
           path: artifacts/macos
 
-      - name: Rename executables
-        run: |
-          mv artifacts/linux/SnakeGame artifacts/linux/SnakeGame-linux
-          mv artifacts/macos/SnakeGame artifacts/macos/SnakeGame-macos
-          chmod +x artifacts/linux/SnakeGame-linux
-          chmod +x artifacts/macos/SnakeGame-macos
-
       - name: Create/Update Latest Release
         uses: softprops/action-gh-release@v1
         with:
@@ -136,15 +135,15 @@ jobs:
             Auto-generated from commit ${{ github.sha }}
             
             **Downloads:**
-            - Windows: SnakeGame.exe
-            - Linux: SnakeGame-linux
-            - macOS: SnakeGame-macos
+            - Windows: SnakeGame.exe - Double-click to run
+            - Linux: SnakeGame-linux.tar.gz - Extract and run: `tar -xzf SnakeGame-linux.tar.gz && ./SnakeGame`
+            - macOS: SnakeGame-macos.tar.gz - Extract and run: `tar -xzf SnakeGame-macos.tar.gz && ./SnakeGame`
             
-            Just download and run - no installation needed!
+            No installation or dependencies needed!
           files: |
             artifacts/windows/SnakeGame.exe
-            artifacts/linux/SnakeGame-linux
-            artifacts/macos/SnakeGame-macos
+            artifacts/linux/SnakeGame-linux.tar.gz
+            artifacts/macos/SnakeGame-macos.tar.gz
           prerelease: false
           draft: false
         env:
