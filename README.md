@@ -12,12 +12,26 @@ A multiplayer snake game where players compete to collect bricks and grow their 
 - **Color-coded players**: Each player gets a unique color
 - **GUI interface**: Clean pygame-based graphical interface
 
-## Requirements
+## Quick Installation (Recommended)
 
-- Python 3.7+
-- pygame
+**For Players**: Download the standalone executable - no installation needed!
 
-## Installation
+### Windows
+1. Download `SnakeGame.exe` from the [releases page](https://github.com/tobiazen/cloudsnake/releases/latest)
+2. Double-click to run
+3. No Python or dependencies required!
+
+### Linux
+1. Download `SnakeGame` from the [releases page](https://github.com/tobiazen/cloudsnake/releases/latest)
+2. Make it executable: `chmod +x SnakeGame`
+3. Run: `./SnakeGame`
+4. No Python or dependencies required!
+
+The executable includes everything needed - just download and play!
+
+## Manual Installation (For Developers)
+
+If you want to modify the code or run the server:
 
 1. Clone the repository:
 ```bash
@@ -44,8 +58,11 @@ The server will start listening on port **50000** by default. Make sure this por
 
 ### Starting the Client
 
-Run the client on any machine that can reach the server:
+**If you downloaded the executable:**
+- **Windows**: Double-click `SnakeGame.exe`
+- **Linux**: Run `./SnakeGame`
 
+**If you cloned the repository:**
 ```bash
 python client.py
 ```
