@@ -56,17 +56,21 @@ jobs:
       - name: Build Linux executable
         run: python build_executable.py
 
-      - name: Make executable and package
+      - name: Create wrapper script
         run: |
           chmod +x dist/SnakeGame
-          cd dist
-          tar -czf SnakeGame-linux.tar.gz SnakeGame
+          echo '#!/bin/bash' > dist/snake-game.sh
+          echo 'cd "$(dirname "$0")"' >> dist/snake-game.sh
+          echo './SnakeGame' >> dist/snake-game.sh
+          chmod +x dist/snake-game.sh
 
       - name: Upload Linux executable
         uses: actions/upload-artifact@v4
         with:
           name: SnakeGame-Linux
-          path: dist/SnakeGame-linux.tar.gz
+          path: |
+            dist/SnakeGame
+            dist/snake-game.sh
           retention-days: 90
 
   build-macos:
@@ -88,17 +92,21 @@ jobs:
       - name: Build macOS executable
         run: python build_executable.py
 
-      - name: Make executable and package
+      - name: Create wrapper script
         run: |
           chmod +x dist/SnakeGame
-          cd dist
-          tar -czf SnakeGame-macos.tar.gz SnakeGame
+          echo '#!/bin/bash' > dist/snake-game.sh
+          echo 'cd "$(dirname "$0")"' >> dist/snake-game.sh
+          echo './SnakeGame' >> dist/snake-game.sh
+          chmod +x dist/snake-game.sh
 
       - name: Upload macOS executable
         uses: actions/upload-artifact@v4
         with:
           name: SnakeGame-macOS
-          path: dist/SnakeGame-macos.tar.gz
+          path: |
+            dist/SnakeGame
+            dist/snake-game.sh
           retention-days: 90
 
   create-release:
@@ -124,6 +132,13 @@ jobs:
           name: SnakeGame-macOS
           path: artifacts/macos
 
+      - name: Package executables with permissions
+        run: |
+          cd artifacts/linux
+          zip -r SnakeGame-linux.zip SnakeGame snake-game.sh
+          cd ../macos
+          zip -r SnakeGame-macos.zip SnakeGame snake-game.sh
+
       - name: Create/Update Latest Release
         uses: softprops/action-gh-release@v1
         with:
@@ -135,15 +150,15 @@ jobs:
             Auto-generated from commit ${{ github.sha }}
             
             **Downloads:**
-            - Windows: SnakeGame.exe - Double-click to run
-            - Linux: SnakeGame-linux.tar.gz - Extract and run: `tar -xzf SnakeGame-linux.tar.gz && ./SnakeGame`
-            - macOS: SnakeGame-macos.tar.gz - Extract and run: `tar -xzf SnakeGame-macos.tar.gz && ./SnakeGame`
+            - **Windows**: Download `SnakeGame.exe` - Double-click to run
+            - **Linux**: Download `SnakeGame-linux.zip` - Extract and run `./snake-game.sh`
+            - **macOS**: Download `SnakeGame-macos.zip` - Extract and run `./snake-game.sh`
             
-            No installation or dependencies needed!
+            No Python installation needed!
           files: |
             artifacts/windows/SnakeGame.exe
-            artifacts/linux/SnakeGame-linux.tar.gz
-            artifacts/macos/SnakeGame-macos.tar.gz
+            artifacts/linux/SnakeGame-linux.zip
+            artifacts/macos/SnakeGame-macos.zip
           prerelease: false
           draft: false
         env:
