@@ -122,6 +122,8 @@ jobs:
         run: |
           mv artifacts/linux/SnakeGame artifacts/linux/SnakeGame-linux
           mv artifacts/macos/SnakeGame artifacts/macos/SnakeGame-macos
+          chmod +x artifacts/linux/SnakeGame-linux
+          chmod +x artifacts/macos/SnakeGame-macos
 
       - name: Create/Update Latest Release
         uses: softprops/action-gh-release@v1
