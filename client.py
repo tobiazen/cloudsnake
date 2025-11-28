@@ -14,16 +14,31 @@ SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 700
 FPS = 60
 
-# Colors
+# Colors - Enhanced palette
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (200, 200, 200)
-DARK_GRAY = (100, 100, 100)
-LIGHT_GRAY = (230, 230, 230)
-GREEN = (0, 200, 0)
-RED = (200, 0, 0)
-BLUE = (0, 100, 200)
-YELLOW = (255, 200, 0)
+DARK_GRAY = (80, 80, 80)
+LIGHT_GRAY = (240, 240, 240)
+GREEN = (34, 177, 76)
+DARK_GREEN = (25, 130, 55)
+RED = (237, 41, 57)
+DARK_RED = (180, 30, 43)
+BLUE = (0, 120, 215)
+DARK_BLUE = (0, 90, 160)
+YELLOW = (255, 185, 0)
+DARK_YELLOW = (200, 145, 0)
+ORANGE = (255, 140, 0)
+PURPLE = (136, 23, 152)
+CYAN = (0, 188, 212)
+
+# UI Colors
+BG_COLOR = (15, 15, 25)
+PANEL_BG = (25, 25, 40)
+BORDER_COLOR = (60, 60, 80)
+HIGHLIGHT_COLOR = (80, 80, 120)
+TEXT_COLOR = (220, 220, 230)
+TEXT_SHADOW = (10, 10, 15)
 
 class GameClient:
     def __init__(self, server_ip: str, server_port: int = 50000, player_name: str = "Player"):
@@ -254,7 +269,7 @@ class InputBox:
     """Simple input box for text entry"""
     def __init__(self, x: int, y: int, w: int, h: int, text: str = '') -> None:
         self.rect = pygame.Rect(x, y, w, h)
-        self.color = GRAY
+        self.color = BORDER_COLOR
         self.text = text
         self.font = pygame.font.Font(None, 32)
         self.active = False
@@ -262,7 +277,7 @@ class InputBox:
     def handle_event(self, event: Any) -> bool:
         if event.type == pygame.MOUSEBUTTONDOWN:
             self.active = self.rect.collidepoint(event.pos)
-            self.color = BLUE if self.active else GRAY
+            self.color = CYAN if self.active else BORDER_COLOR
         if event.type == pygame.KEYDOWN and self.active:
             if event.key == pygame.K_RETURN:
                 return True
@@ -273,12 +288,13 @@ class InputBox:
         return False
     
     def draw(self, screen: Any) -> None:
-        # Draw box
-        pygame.draw.rect(screen, self.color, self.rect, 2)
-        pygame.draw.rect(screen, LIGHT_GRAY, self.rect)
-        pygame.draw.rect(screen, self.color, self.rect, 2)
+        # Draw box background
+        pygame.draw.rect(screen, PANEL_BG, self.rect)
+        # Draw border
+        border_color = CYAN if self.active else self.color
+        pygame.draw.rect(screen, border_color, self.rect, 2)
         # Draw text
-        txt_surface = self.font.render(self.text, True, BLACK)
+        txt_surface = self.font.render(self.text, True, TEXT_COLOR)
         screen.blit(txt_surface, (self.rect.x + 5, self.rect.y + 5))
 
 class Button:
@@ -301,8 +317,11 @@ class Button:
     
     def draw(self, screen: Any) -> None:
         color = self.hover_color if self.hovered else self.color
+        # Draw button with shadow effect
+        shadow_rect = pygame.Rect(self.rect.x + 2, self.rect.y + 2, self.rect.width, self.rect.height)
+        pygame.draw.rect(screen, (0, 0, 0, 50), shadow_rect)
         pygame.draw.rect(screen, color, self.rect)
-        pygame.draw.rect(screen, BLACK, self.rect, 2)
+        pygame.draw.rect(screen, BORDER_COLOR, self.rect, 2)
         
         txt_surface = self.font.render(self.text, True, WHITE)
         txt_rect = txt_surface.get_rect(center=self.rect.center)
@@ -312,7 +331,7 @@ class GameGUI:
     """Main GUI for the game client"""
     def __init__(self):
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("Multiplayer Snake Game")
+        pygame.display.set_caption("CloudSnake - Multiplayer Snake Game")
         self.clock = pygame.time.Clock()
         self.running = True
         
@@ -337,7 +356,7 @@ class GameGUI:
         
         self.ip_input = InputBox(300, 250, 400, 40, server_ip)
         self.name_input = InputBox(300, 320, 400, 40, last_name)
-        self.dropdown_button = Button(705, 320, 40, 40, '▼', GRAY)
+        self.dropdown_button = Button(705, 320, 40, 40, '▼', DARK_GRAY)
         self.connect_button = Button(400, 400, 200, 50, 'Connect', GREEN)
         
         # Game settings
@@ -357,9 +376,27 @@ class GameGUI:
         self.respawn_button = Button(350, 350, 300, 60, 'Respawn', GREEN)
         
         # Fonts
-        self.title_font = pygame.font.Font(None, 64)
+        self.title_font = pygame.font.Font(None, 72)
         self.font = pygame.font.Font(None, 32)
         self.small_font = pygame.font.Font(None, 24)
+    
+    def draw_text_with_shadow(self, text: str, font: Any, x: int, y: int, color: Tuple[int, int, int], shadow_offset: int = 2) -> None:
+        """Draw text with shadow for better readability"""
+        # Shadow
+        shadow_surf = font.render(text, True, TEXT_SHADOW)
+        self.screen.blit(shadow_surf, (x + shadow_offset, y + shadow_offset))
+        # Text
+        text_surf = font.render(text, True, color)
+        self.screen.blit(text_surf, (x, y))
+    
+    def draw_gradient_rect(self, x: int, y: int, width: int, height: int, color1: Tuple[int, int, int], color2: Tuple[int, int, int]) -> None:
+        """Draw a rectangle with vertical gradient"""
+        for i in range(height):
+            ratio = i / height
+            r = int(color1[0] * (1 - ratio) + color2[0] * ratio)
+            g = int(color1[1] * (1 - ratio) + color2[1] * ratio)
+            b = int(color1[2] * (1 - ratio) + color2[2] * ratio)
+            pygame.draw.line(self.screen, (r, g, b), (x, y + i), (x + width, y + i))
     
     def load_settings(self) -> Dict[str, Any]:
         """Load settings from file"""
@@ -396,18 +433,17 @@ class GameGUI:
         
     def draw_connection_screen(self) -> None:
         """Draw the connection screen"""
-        self.screen.fill(WHITE)
+        # Background gradient
+        self.screen.fill(BG_COLOR)
         
-        # Title
-        title = self.title_font.render("🎮 Network Game", True, BLACK)
-        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 100))
-        self.screen.blit(title, title_rect)
+        # Title with shadow
+        self.draw_text_with_shadow("CloudSnake", self.title_font, SCREEN_WIDTH // 2 - 150, 80, CYAN, 3)
         
         # Labels
-        ip_label = self.font.render("Server IP:", True, BLACK)
+        ip_label = self.font.render("Server IP:", True, TEXT_COLOR)
         self.screen.blit(ip_label, (300, 220))
         
-        name_label = self.font.render("Player Name:", True, BLACK)
+        name_label = self.font.render("Player Name:", True, TEXT_COLOR)
         self.screen.blit(name_label, (300, 290))
         
         # Input boxes and button
@@ -424,12 +460,12 @@ class GameGUI:
                 # Highlight hovered item
                 mouse_pos = pygame.mouse.get_pos()
                 if item_rect.collidepoint(mouse_pos):
-                    pygame.draw.rect(self.screen, BLUE, item_rect)
+                    pygame.draw.rect(self.screen, HIGHLIGHT_COLOR, item_rect)
                     color = WHITE
                 else:
-                    pygame.draw.rect(self.screen, WHITE, item_rect)
-                    color = BLACK
-                pygame.draw.rect(self.screen, DARK_GRAY, item_rect, 2)
+                    pygame.draw.rect(self.screen, PANEL_BG, item_rect)
+                    color = TEXT_COLOR
+                pygame.draw.rect(self.screen, BORDER_COLOR, item_rect, 2)
                 
                 # Truncate long names
                 display_name = name if len(name) <= 30 else name[:27] + "..."
@@ -443,22 +479,20 @@ class GameGUI:
             self.screen.blit(error_text, error_rect)
         
         # Instructions
-        instruction = self.small_font.render("Click input boxes to edit, then click Connect", True, DARK_GRAY)
+        instruction = self.small_font.render("Click input boxes to edit, then click Connect", True, GRAY)
         inst_rect = instruction.get_rect(center=(SCREEN_WIDTH // 2, 550))
         self.screen.blit(instruction, inst_rect)
     
     def draw_connecting_screen(self) -> None:
         """Draw the connecting screen"""
-        self.screen.fill(WHITE)
+        self.screen.fill(BG_COLOR)
         
-        # Connecting message
-        connecting = self.title_font.render("Connecting...", True, BLACK)
-        connecting_rect = connecting.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-        self.screen.blit(connecting, connecting_rect)
+        # Connecting message with shadow
+        self.draw_text_with_shadow("Connecting", self.title_font, SCREEN_WIDTH // 2 - 130, SCREEN_HEIGHT // 2 - 30, CYAN, 3)
         
         # Animated dots
         dots = "." * ((pygame.time.get_ticks() // 500) % 4)
-        dots_text = self.font.render(dots, True, BLACK)
+        dots_text = self.font.render(dots, True, TEXT_COLOR)
         dots_rect = dots_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 60))
         self.screen.blit(dots_text, dots_rect)
     
@@ -469,14 +503,15 @@ class GameGUI:
     
     def draw_game_screen(self) -> None:
         """Draw the game screen with snake game"""
-        self.screen.fill(WHITE)
+        # Dark background
+        self.screen.fill(BG_COLOR)
         
-        # Title bar
-        pygame.draw.rect(self.screen, DARK_GRAY, (0, 0, SCREEN_WIDTH, 60))
+        # Title bar with gradient
+        self.draw_gradient_rect(0, 0, SCREEN_WIDTH, 60, PANEL_BG, BG_COLOR)
         
         if self.client:
-            # Player info
-            player_text = self.font.render(f"Player: {self.client.player_name}", True, WHITE)
+            # Player info with modern styling
+            player_text = self.font.render(f"Player: {self.client.player_name}", True, TEXT_COLOR)
             self.screen.blit(player_text, (20, 15))
             
             # Score - get from server game state
@@ -488,7 +523,7 @@ class GameGUI:
                 score = my_data.get('score', 0)
                 alive = my_data.get('alive', True)
             
-            score_text = self.font.render(f"Score: {score}", True, WHITE)
+            score_text = self.font.render(f"Score: {score}", True, YELLOW)
             self.screen.blit(score_text, (300, 15))
             
             # Connection status - check timeout
@@ -496,32 +531,36 @@ class GameGUI:
                 time_since_update = time.time() - self.client.last_update_time
                 if time_since_update > self.client.update_timeout:
                     # Timeout detected
-                    status_text = self.small_font.render("🔴 Disconnected", True, RED)
+                    status_text = self.small_font.render("● Disconnected", True, RED)
                     self.screen.blit(status_text, (SCREEN_WIDTH - 180, 20))
                     
                     # Show timeout info
                     timeout_info = self.small_font.render(f"(No updates for {time_since_update:.1f}s)", True, RED)
                     self.screen.blit(timeout_info, (SCREEN_WIDTH - 250, 40))
                 else:
-                    status_text = self.small_font.render("🟢 Connected", True, GREEN)
+                    status_text = self.small_font.render("● Connected", True, GREEN)
                     self.screen.blit(status_text, (SCREEN_WIDTH - 150, 20))
             else:
-                status_text = self.small_font.render("🔴 Disconnected", True, RED)
+                status_text = self.small_font.render("● Disconnected", True, RED)
                 self.screen.blit(status_text, (SCREEN_WIDTH - 180, 20))
         
-        # Game area (snake game)
+        # Game area (snake game) with modern styling
         game_area = pygame.Rect(self.game_offset_x, self.game_offset_y, 
                                self.game_area_width, self.game_area_height)
-        pygame.draw.rect(self.screen, BLACK, game_area)  # Black background
-        pygame.draw.rect(self.screen, WHITE, game_area, 3)  # White border
+        # Dark game background
+        pygame.draw.rect(self.screen, (10, 10, 15), game_area)
+        # Glowing border effect
+        pygame.draw.rect(self.screen, CYAN, game_area, 3)
+        pygame.draw.rect(self.screen, (0, 100, 140), (game_area.x - 1, game_area.y - 1, game_area.width + 2, game_area.height + 2), 1)
         
-        # Draw grid lines (subtle)
+        # Draw grid lines (very subtle)
+        grid_color = (20, 20, 30)
         for x in range(0, self.game_area_width, self.grid_size):
-            pygame.draw.line(self.screen, DARK_GRAY,
+            pygame.draw.line(self.screen, grid_color,
                            (self.game_offset_x + x, self.game_offset_y),
                            (self.game_offset_x + x, self.game_offset_y + self.game_area_height))
         for y in range(0, self.game_area_height, self.grid_size):
-            pygame.draw.line(self.screen, DARK_GRAY,
+            pygame.draw.line(self.screen, grid_color,
                            (self.game_offset_x, self.game_offset_y + y),
                            (self.game_offset_x + self.game_area_width, self.game_offset_y + y))
         
@@ -541,25 +580,31 @@ class GameGUI:
                 head_color = color
                 body_color = tuple(int(c * 0.7) for c in color)  # Darker body
                 
-                # Draw snake
+                # Draw snake with rounded style and glow effect
                 for i, segment in enumerate(snake):
                     if isinstance(segment, list):
                         segment = tuple(segment)
                     
                     x, y = segment
                     rect = pygame.Rect(
-                        self.game_offset_x + x * self.grid_size + 1,
-                        self.game_offset_y + y * self.grid_size + 1,
-                        self.grid_size - 2,
-                        self.grid_size - 2
+                        self.game_offset_x + x * self.grid_size + 2,
+                        self.game_offset_y + y * self.grid_size + 2,
+                        self.grid_size - 4,
+                        self.grid_size - 4
                     )
                     
-                    # Head is brighter
-                    segment_color = head_color if i == 0 else body_color
-                    pygame.draw.rect(self.screen, segment_color, rect)
-                    pygame.draw.rect(self.screen, BLACK, rect, 1)
+                    # Head is brighter with glow
+                    if i == 0:
+                        # Glow effect for head
+                        glow_rect = pygame.Rect(rect.x - 1, rect.y - 1, rect.width + 2, rect.height + 2)
+                        pygame.draw.rect(self.screen, head_color, glow_rect)
+                        pygame.draw.rect(self.screen, head_color, rect)
+                        pygame.draw.rect(self.screen, WHITE, rect, 1)
+                    else:
+                        pygame.draw.rect(self.screen, body_color, rect)
+                        pygame.draw.rect(self.screen, head_color, rect, 1)
         
-        # Draw bricks
+        # Draw bricks with improved graphics
         if self.client and self.client.game_state:
             bricks = self.client.game_state.get('bricks', [])
             
@@ -569,15 +614,16 @@ class GameGUI:
                 else:
                     x, y = brick
                 
-                # Draw brick as orange square
+                # Draw brick with gradient effect
                 brick_rect = pygame.Rect(
-                    self.game_offset_x + x * self.grid_size + 1,
-                    self.game_offset_y + y * self.grid_size + 1,
-                    self.grid_size - 2,
-                    self.grid_size - 2
+                    self.game_offset_x + x * self.grid_size + 2,
+                    self.game_offset_y + y * self.grid_size + 2,
+                    self.grid_size - 4,
+                    self.grid_size - 4
                 )
-                pygame.draw.rect(self.screen, (255, 128, 0), brick_rect)  # Orange
-                pygame.draw.rect(self.screen, YELLOW, brick_rect, 2)  # Yellow border
+                # Orange brick with glow
+                pygame.draw.rect(self.screen, ORANGE, brick_rect)
+                pygame.draw.rect(self.screen, YELLOW, brick_rect, 2)
             
             # Draw bullet bricks (special bricks that give bullets)
             bullet_bricks = self.client.game_state.get('bullet_bricks', [])
@@ -588,15 +634,15 @@ class GameGUI:
                 else:
                     x, y = brick
                 
-                # Draw bullet brick as blue square
+                # Draw bullet brick with cyan/blue colors
                 brick_rect = pygame.Rect(
-                    self.game_offset_x + x * self.grid_size + 1,
-                    self.game_offset_y + y * self.grid_size + 1,
-                    self.grid_size - 2,
-                    self.grid_size - 2
+                    self.game_offset_x + x * self.grid_size + 2,
+                    self.game_offset_y + y * self.grid_size + 2,
+                    self.grid_size - 4,
+                    self.grid_size - 4
                 )
-                pygame.draw.rect(self.screen, (100, 150, 255), brick_rect)  # Light blue
-                pygame.draw.rect(self.screen, (0, 100, 255), brick_rect, 2)  # Blue border
+                pygame.draw.rect(self.screen, CYAN, brick_rect)
+                pygame.draw.rect(self.screen, BLUE, brick_rect, 2)
             
             # Draw bullets
             bullets = self.client.game_state.get('bullets', [])
