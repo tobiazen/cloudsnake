@@ -135,9 +135,11 @@ jobs:
       - name: Package executables with permissions
         run: |
           cd artifacts/linux
-          zip -r SnakeGame-linux.zip SnakeGame snake-game.sh
+          chmod +x SnakeGame snake-game.sh
+          zip SnakeGame-linux.zip SnakeGame snake-game.sh
           cd ../macos
-          zip -r SnakeGame-macos.zip SnakeGame snake-game.sh
+          chmod +x SnakeGame snake-game.sh
+          zip SnakeGame-macos.zip SnakeGame snake-game.sh
 
       - name: Create/Update Latest Release
         uses: softprops/action-gh-release@v1
