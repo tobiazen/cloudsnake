@@ -112,6 +112,11 @@ jobs:
           name: SnakeGame-macOS
           path: artifacts/macos
 
+      - name: Rename executables
+        run: |
+          mv artifacts/linux/SnakeGame artifacts/linux/SnakeGame-linux
+          mv artifacts/macos/SnakeGame artifacts/macos/SnakeGame-macos
+
       - name: Create/Update Latest Release
         uses: softprops/action-gh-release@v1
         with:
@@ -130,8 +135,8 @@ jobs:
             Just download and run - no installation needed!
           files: |
             artifacts/windows/SnakeGame.exe
-            artifacts/linux/SnakeGame
-            artifacts/macos/SnakeGame
+            artifacts/linux/SnakeGame-linux
+            artifacts/macos/SnakeGame-macos
           prerelease: false
           draft: false
         env:
