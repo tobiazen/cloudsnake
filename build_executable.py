@@ -18,14 +18,14 @@ def check_pyinstaller() -> bool:
 
 def install_pyinstaller() -> None:
     """Install PyInstaller"""
-    print("📦 Installing PyInstaller...")
+    print("Installing PyInstaller...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
 
 def build_executable() -> bool:
     """Build standalone executable"""
     system = platform.system()
     
-    print(f"🔨 Building executable for {system}...")
+    print(f"Building executable for {system}...")
     
     # PyInstaller command
     cmd = [
@@ -46,30 +46,30 @@ def build_executable() -> bool:
     
     try:
         subprocess.check_call(cmd)
-        print(f"✅ Build successful!")
-        print(f"📁 Executable location: dist/SnakeGame{'exe' if system == 'Windows' else ''}")
+        print(f"Build successful!")
+        print(f"Executable location: dist/SnakeGame{'.exe' if system == 'Windows' else ''}")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"❌ Build failed: {e}")
+        print(f"Build failed: {e}")
         return False
 
 def main() -> None:
     print("="*60)
-    print("🎮 Snake Game - Executable Builder")
+    print("Snake Game - Executable Builder")
     print("="*60)
     
     # Check/install PyInstaller
     if not check_pyinstaller():
-        print("⚠️  PyInstaller not found")
+        print("PyInstaller not found")
         install_pyinstaller()
     
     # Build executable
     if build_executable():
-        print("\n✅ Build complete!")
-        print("📦 Distribution files are in the 'dist' folder")
-        print("💡 You can now distribute the executable to users")
+        print("\nBuild complete!")
+        print("Distribution files are in the 'dist' folder")
+        print("You can now distribute the executable to users")
     else:
-        print("\n❌ Build failed")
+        print("\nBuild failed")
         sys.exit(1)
 
 if __name__ == "__main__":
