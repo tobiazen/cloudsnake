@@ -174,6 +174,12 @@ class GameClient:
         players: Dict[str, Any] = self.game_state.get('players', {})
         game_time: float = self.game_state.get('game_time', 0)
         
+        # Update local direction from server's authoritative state
+        if self.player_id and self.player_id in players:
+            server_direction = players[self.player_id].get('direction')
+            if server_direction:
+                self.player_data['direction'] = server_direction
+        
         # Clear previous output (simple approach)
         # print("\n" + "="*60)
         # print(f"🎮 GAME STATE (Time: {game_time:.1f}s)")
@@ -822,10 +828,14 @@ class GameGUI:
                 self.client.shoot()
                 return  # Don't send direction change
             
-            # Send direction change to server
+            # Send direction change to server (don't update local state yet)
             if new_direction:
-                self.client.player_data['direction'] = new_direction
-                self.client.update_player_data()
+                # Send to server, but don't update local direction until server confirms
+                # This prevents rapid key presses from causing illegal 180-degree turns
+                self.client.send_to_server({
+                    'type': 'update',
+                    'data': {'direction': new_direction}
+                })
     
     def start_connection(self) -> None:
         """Start connection to server"""

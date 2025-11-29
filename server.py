@@ -270,7 +270,20 @@ class GameServer:
             
             # Only allow certain updates from client (direction, respawn)
             if 'direction' in player_data:
-                self.clients[client_address]['direction'] = player_data['direction']
+                new_direction = player_data['direction']
+                current_direction = self.clients[client_address]['direction']
+                
+                # Prevent 180-degree turns (can't reverse direction)
+                opposite_directions = {
+                    'UP': 'DOWN',
+                    'DOWN': 'UP',
+                    'LEFT': 'RIGHT',
+                    'RIGHT': 'LEFT'
+                }
+                
+                # Only update if not trying to go in opposite direction
+                if opposite_directions.get(current_direction) != new_direction:
+                    self.clients[client_address]['direction'] = new_direction
             
             if 'respawn' in player_data and player_data['respawn']:
                 # Handle respawn
