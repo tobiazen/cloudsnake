@@ -516,21 +516,8 @@ class GameGUI:
             all_time_high = self.client.game_state.get('all_time_highscore', 0)
             all_time_player = self.client.game_state.get('all_time_highscore_player', 'None')
         
-        # All-time highscore panel
-        panel_y = 100
-        panel_rect = pygame.Rect(50, panel_y, SCREEN_WIDTH - 100, 80)
-        self.draw_gradient_rect(panel_rect.x, panel_rect.y, panel_rect.width, panel_rect.height, 
-                               PANEL_BG, (20, 20, 35))
-        pygame.draw.rect(self.screen, CYAN, panel_rect, 2)
-        
-        all_time_label = self.font.render("All-Time Highscore", True, TEXT_COLOR)
-        self.screen.blit(all_time_label, (panel_rect.x + 20, panel_rect.y + 15))
-        
-        all_time_value = self.font.render(f"{all_time_high:,}", True, YELLOW)
-        self.screen.blit(all_time_value, (panel_rect.x + 20, panel_rect.y + 45))
-        
         # Leaderboard section
-        leaderboard_y = panel_y + 100
+        leaderboard_y = 100
         leaderboard_label = self.font.render("Top Players", True, CYAN)
         self.screen.blit(leaderboard_label, (50, leaderboard_y))
         
