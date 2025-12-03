@@ -179,6 +179,9 @@ class GameClient:
             server_direction = players[self.player_id].get('direction')
             if server_direction:
                 self.player_data['direction'] = server_direction
+            # Update in_game status from server
+            server_in_game = players[self.player_id].get('in_game', False)
+            # Note: We don't update GUI's in_game here - GUI manages it separately
         
         # Clear previous output (simple approach)
         # print("\n" + "="*60)
@@ -368,6 +371,7 @@ class GameGUI:
         # Game menu state
         self.game_menu_open = False
         self.show_statistics = False
+        self.in_game = False  # Track whether player is in active game or just in lobby
         
         # Game settings
         self.grid_size = 20  # Size of each grid cell
@@ -684,12 +688,30 @@ class GameGUI:
         if self.client and self.client.game_state:
             players = self.client.game_state.get('players', {})
             
+            # Check if current player is in game
+            my_data = players.get(self.client.player_id, {})
+            my_in_game = my_data.get('in_game', False)
+            
+            # Show lobby message if not in game
+            if not my_in_game:
+                lobby_text = self.title_font.render("LOBBY", True, CYAN)
+                lobby_rect = lobby_text.get_rect(center=(self.game_offset_x + self.game_area_width // 2,
+                                                         self.game_offset_y + self.game_area_height // 2 - 50))
+                self.screen.blit(lobby_text, lobby_rect)
+                
+                info_text = self.font.render("Open Menu and click 'Start Game' to play", True, TEXT_COLOR)
+                info_rect = info_text.get_rect(center=(self.game_offset_x + self.game_area_width // 2,
+                                                       self.game_offset_y + self.game_area_height // 2 + 20))
+                self.screen.blit(info_text, info_rect)
+            
             for player_id, player_info in players.items():
                 snake = player_info.get('snake', [])
                 alive = player_info.get('alive', True)
+                in_game = player_info.get('in_game', False)
                 color = player_info.get('color', (255, 255, 255))
                 
-                if not snake or not alive:
+                # Don't draw snakes for players not in game
+                if not in_game or not snake or not alive:
                     continue
                 
                 # Use color from server
@@ -881,7 +903,11 @@ class GameGUI:
             if self.game_menu_open:
                 menu_x = 20
                 menu_y = 90
-                menu_items = ['Statistics', 'Disconnect']
+                # Menu items change based on game state
+                if self.in_game:
+                    menu_items = ['Statistics', 'Leave Game', 'Disconnect']
+                else:
+                    menu_items = ['Statistics', 'Start Game', 'Disconnect']
                 
                 for i, item in enumerate(menu_items):
                     item_rect = pygame.Rect(menu_x, menu_y + i * 40, 180, 38)
@@ -966,32 +992,44 @@ class GameGUI:
                         if i == 0:  # Statistics
                             self.show_statistics = True
                             self.game_menu_open = False
-                        elif i == 1:  # Disconnect
+                        elif i == 1:  # Start Game / Leave Game
+                            if self.in_game:
+                                # Leave game - return to lobby
+                                self.client.send_to_server({'type': 'leave_game'})
+                                self.in_game = False
+                            else:
+                                # Start game - join active game
+                                self.client.send_to_server({'type': 'start_game'})
+                                self.in_game = True
+                            self.game_menu_open = False
+                        elif i == 2:  # Disconnect
                             self.client.disconnect()
                             self.state = 'connection'
                             self.game_menu_open = False
                         return
             
             # Close menu if clicking outside
-            menu_area = pygame.Rect(20, 50, 180, 128)
+            menu_area = pygame.Rect(20, 50, 180, 168)  # Increased height for 3 items
             if not menu_area.collidepoint(mouse_pos):
                 self.game_menu_open = False
         
         # Check if player is dead
         is_dead = False
+        is_in_game = False
         if self.client.game_state:
             players = self.client.game_state.get('players', {})
             my_data = players.get(self.client.player_id, {})
             is_dead = not my_data.get('alive', True)
+            is_in_game = my_data.get('in_game', False)
         
-        # Handle respawn button if dead
-        if is_dead:
+        # Handle respawn button if dead and in game
+        if is_dead and is_in_game:
             if self.respawn_button.handle_event(event):
                 self.client.respawn()
                 return
         
-        # Handle keyboard input for snake direction (only if alive)
-        if event.type == pygame.KEYDOWN and not is_dead:
+        # Handle keyboard input for snake direction (only if alive and in game)
+        if event.type == pygame.KEYDOWN and not is_dead and is_in_game:
             current_direction = self.client.player_data['direction']
             new_direction = None
             

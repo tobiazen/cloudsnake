@@ -196,6 +196,10 @@ class GameServer:
             self.handle_ping(client_address)
         elif message_type == 'shoot':
             self.handle_shoot(client_address)
+        elif message_type == 'start_game':
+            self.handle_start_game(client_address)
+        elif message_type == 'leave_game':
+            self.handle_leave_game(client_address)
         else:
             pass  # print(f"⚠️  Unknown message type: {message_type} from {client_address}")
     
@@ -299,7 +303,8 @@ class GameServer:
                 'score': 0,
                 'alive': True,
                 'color': color,
-                'bullets': 0  # Starting bullet count
+                'bullets': 0,  # Starting bullet count
+                'in_game': False  # Start in lobby, not in active game
             }
             
             # Add to game state
@@ -417,9 +422,42 @@ class GameServer:
             
             # Update game state will happen in the game loop
     
+    def handle_start_game(self, client_address: Tuple[str, int]) -> None:
+        """Handle player starting game (joining from lobby)"""
+        if client_address in self.clients:
+            self.clients[client_address]['in_game'] = True
+            self.clients[client_address]['alive'] = True
+            # Reset position and state
+            import random
+            start_x = random.randint(5, 35)
+            start_y = random.randint(5, 25)
+            safe_direction = self.get_safe_direction(start_x, start_y)
+            start_pos = (start_x, start_y)
+            # Remove old position from occupied cells
+            old_set = self.clients[client_address].get('snake_set', set())
+            self.occupied_cells.difference_update(old_set)
+            # Set new position
+            self.clients[client_address]['snake'] = [start_pos]
+            self.clients[client_address]['snake_set'] = {start_pos}
+            self.clients[client_address]['direction'] = safe_direction
+            self.clients[client_address]['score'] = 0
+            self.clients[client_address]['bullets'] = 0
+            self.occupied_cells.add(start_pos)
+            # print(f"🎮 {self.clients[client_address]['player_name']} started game")
+    
+    def handle_leave_game(self, client_address: Tuple[str, int]) -> None:
+        """Handle player leaving game (returning to lobby)"""
+        if client_address in self.clients:
+            self.clients[client_address]['in_game'] = False
+            # Remove from occupied cells
+            old_set = self.clients[client_address].get('snake_set', set())
+            self.occupied_cells.difference_update(old_set)
+            # Keep them connected but not playing
+            # print(f"👋 {self.clients[client_address]['player_name']} left game")
+    
     def calculate_brick_count(self) -> int:
         """Calculate how many bricks should be active based on player count"""
-        player_count = len([c for c in self.clients.values() if c.get('alive', True)])
+        player_count = len([c for c in self.clients.values() if c.get('alive', True) and c.get('in_game', True)])
         if player_count == 0:
             return 0
         elif player_count == 1:
@@ -658,6 +696,10 @@ class GameServer:
         """Update snake positions and check collisions"""
         
         for client_address, client_data in list(self.clients.items()):
+            # Skip players not in active game
+            if not client_data.get('in_game', False):
+                continue
+                
             if not client_data.get('alive', True):
                 continue
             
@@ -745,10 +787,10 @@ class GameServer:
         """Broadcast game state to all connected clients at 2Hz"""
         while self.running:
             if self.clients:
-                # Rebuild occupied_cells from alive players once per tick (safety sync)
+                # Rebuild occupied_cells from alive players in game once per tick (safety sync)
                 occ: Set[Tuple[int, int]] = set()
                 for _addr, data in self.clients.items():
-                    if data.get('alive', True):
+                    if data.get('alive', True) and data.get('in_game', False):
                         occ.update(data.get('snake_set', set()))
                 self.occupied_cells = occ
                 
@@ -778,7 +820,8 @@ class GameServer:
                         'score': client_data.get('score'),
                         'alive': client_data.get('alive'),
                         'color': client_data.get('color'),
-                        'bullets': client_data.get('bullets', 0)
+                        'bullets': client_data.get('bullets', 0),
+                        'in_game': client_data.get('in_game', False)
                     }
                     players_snapshot[str(client_address)] = filtered
                 self.game_state['players'] = players_snapshot
