@@ -523,14 +523,11 @@ class GameGUI:
                                PANEL_BG, (20, 20, 35))
         pygame.draw.rect(self.screen, CYAN, panel_rect, 2)
         
-        trophy_label = self.font.render("TROPHY", True, YELLOW)
-        self.screen.blit(trophy_label, (panel_rect.x + 20, panel_rect.y + 20))
-        
         all_time_label = self.font.render("All-Time Highscore", True, TEXT_COLOR)
-        self.screen.blit(all_time_label, (panel_rect.x + 100, panel_rect.y + 15))
+        self.screen.blit(all_time_label, (panel_rect.x + 20, panel_rect.y + 15))
         
-        all_time_value = self.font.render(f"{all_time_high:,} by {all_time_player}", True, YELLOW)
-        self.screen.blit(all_time_value, (panel_rect.x + 100, panel_rect.y + 45))
+        all_time_value = self.font.render(f"{all_time_high:,}", True, YELLOW)
+        self.screen.blit(all_time_value, (panel_rect.x + 20, panel_rect.y + 45))
         
         # Leaderboard section
         leaderboard_y = panel_y + 100
