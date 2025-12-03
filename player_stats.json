@@ -4,19 +4,19 @@
       "highscore": 500,
       "games_played": 0,
       "total_kills": 0,
-      "total_deaths": 6,
-      "last_seen": "2025-12-03T22:02:44.234265"
+      "total_deaths": 9,
+      "last_seen": "2025-12-03T22:14:25.021993"
     },
     "TestPlayer2": {
       "highscore": 300,
       "games_played": 0,
       "total_kills": 0,
-      "total_deaths": 4,
-      "last_seen": "2025-12-03T22:02:44.234344"
+      "total_deaths": 6,
+      "last_seen": "2025-12-03T22:14:25.022091"
     }
   },
   "all_time_highscore": 500,
   "all_time_highscore_player": "TestPlayer1",
   "total_games": 0,
-  "last_updated": "2025-12-03T22:02:44.234345"
+  "last_updated": "2025-12-03T22:14:25.022093"
 }

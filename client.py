@@ -364,10 +364,10 @@ class GameGUI:
         self.name_input = InputBox(300, 320, 400, 40, last_name)
         self.dropdown_button = Button(705, 320, 40, 40, '▼', DARK_GRAY)
         self.connect_button = Button(400, 400, 200, 50, 'Connect', GREEN)
-        self.stats_button = Button(325, 470, 350, 50, 'View Statistics', PURPLE)
         
-        # Screen state
-        self.current_screen = 'connection'  # 'connection', 'statistics', 'connecting', 'game'
+        # Game menu state
+        self.game_menu_open = False
+        self.show_statistics = False
         
         # Game settings
         self.grid_size = 20  # Size of each grid cell
@@ -461,7 +461,6 @@ class GameGUI:
         self.name_input.draw(self.screen)
         self.dropdown_button.draw(self.screen)
         self.connect_button.draw(self.screen)
-        self.stats_button.draw(self.screen)
         
         # Draw dropdown menu if open
         if self.dropdown_open and self.settings['player_names']:
@@ -502,9 +501,10 @@ class GameGUI:
         # Title with shadow
         self.draw_text_with_shadow("Statistics & Leaderboard", self.title_font, 120, 30, CYAN, 3)
         
-        # Back button
-        back_button = Button(50, 30, 120, 40, '← Back', GRAY)
-        back_button.draw(self.screen)
+        # Close button (X in top right)
+        close_button = Button(SCREEN_WIDTH - 120, 30, 100, 40, '✕ Close', RED)
+        close_button.draw(self.screen)
+        self.stats_close_button = close_button  # Store for event handling
         
         # Get leaderboard data from game state
         leaderboard = []
@@ -606,12 +606,9 @@ class GameGUI:
         
         # If no data available
         if not leaderboard:
-            no_data_text = self.font.render("Connect to server to view statistics", True, GRAY)
+            no_data_text = self.font.render("No statistics available yet", True, GRAY)
             no_data_rect = no_data_text.get_rect(center=(SCREEN_WIDTH // 2, 400))
             self.screen.blit(no_data_text, no_data_rect)
-        
-        # Store back button for click detection
-        self.back_button = back_button
     
     def draw_connecting_screen(self) -> None:
         """Draw the connecting screen"""
@@ -633,6 +630,11 @@ class GameGUI:
     
     def draw_game_screen(self) -> None:
         """Draw the game screen with snake game"""
+        # If showing statistics overlay, draw that instead
+        if self.show_statistics:
+            self.draw_statistics_screen()
+            return
+        
         # Dark background
         self.screen.fill(BG_COLOR)
         
@@ -655,6 +657,38 @@ class GameGUI:
             
             score_text = self.font.render(f"Score: {score}", True, YELLOW)
             self.screen.blit(score_text, (300, 15))
+            
+            # Menu button in top right
+            menu_button = Button(SCREEN_WIDTH - 120, 10, 100, 40, 'Menu ▼', PURPLE)
+            menu_button.draw(self.screen)
+            self.menu_button = menu_button  # Store for event handling
+            
+            # Draw menu dropdown if open
+            if self.game_menu_open:
+                menu_x = SCREEN_WIDTH - 200
+                menu_y = 55
+                menu_items = ['Statistics', 'Disconnect']
+                
+                for i, item in enumerate(menu_items):
+                    item_rect = pygame.Rect(menu_x, menu_y + i * 40, 180, 38)
+                    mouse_pos = pygame.mouse.get_pos()
+                    
+                    if item_rect.collidepoint(mouse_pos):
+                        pygame.draw.rect(self.screen, HIGHLIGHT_COLOR, item_rect)
+                        text_color = WHITE
+                    else:
+                        pygame.draw.rect(self.screen, PANEL_BG, item_rect)
+                        text_color = TEXT_COLOR
+                    
+                    pygame.draw.rect(self.screen, BORDER_COLOR, item_rect, 2)
+                    item_text = self.small_font.render(item, True, text_color)
+                    self.screen.blit(item_text, (item_rect.x + 10, item_rect.y + 10))
+                
+                # Store menu items for click detection
+                self.menu_items_rects = [
+                    pygame.Rect(menu_x, menu_y + i * 40, 180, 38) 
+                    for i in range(len(menu_items))
+                ]
             
             # Connection status - check timeout
             if self.client.connected:
@@ -911,21 +945,47 @@ class GameGUI:
         if self.connect_button.handle_event(event):
             # Start connection
             self.start_connection()
-        
-        if self.stats_button.handle_event(event):
-            # Switch to statistics screen
-            self.current_screen = 'statistics'
     
     def handle_statistics_events(self, event: Any) -> None:
         """Handle events on statistics screen"""
-        if hasattr(self, 'back_button') and self.back_button.handle_event(event):
-            # Return to connection screen
-            self.current_screen = 'connection'
+        if hasattr(self, 'stats_close_button') and self.stats_close_button.handle_event(event):
+            # Close statistics view, return to game
+            self.show_statistics = False
     
     def handle_game_events(self, event: Any) -> None:
         """Handle events during game"""
         if not self.client:
             return
+        
+        # If showing statistics, handle those events instead
+        if self.show_statistics:
+            self.handle_statistics_events(event)
+            return
+        
+        # Handle menu button click
+        if hasattr(self, 'menu_button') and self.menu_button.handle_event(event):
+            self.game_menu_open = not self.game_menu_open
+            return
+        
+        # Handle menu dropdown clicks
+        if event.type == pygame.MOUSEBUTTONDOWN and self.game_menu_open:
+            mouse_pos = event.pos
+            if hasattr(self, 'menu_items_rects'):
+                for i, rect in enumerate(self.menu_items_rects):
+                    if rect.collidepoint(mouse_pos):
+                        if i == 0:  # Statistics
+                            self.show_statistics = True
+                            self.game_menu_open = False
+                        elif i == 1:  # Disconnect
+                            self.client.disconnect()
+                            self.state = 'connection'
+                            self.game_menu_open = False
+                        return
+            
+            # Close menu if clicking outside
+            menu_area = pygame.Rect(SCREEN_WIDTH - 200, 55, 180, 80)
+            if not menu_area.collidepoint(mouse_pos):
+                self.game_menu_open = False
         
         # Check if player is dead
         is_dead = False
@@ -1046,21 +1106,14 @@ class GameGUI:
                     self.handle_connection_events(event)
                 elif self.state == 'game':
                     self.handle_game_events(event)
-                
-                # Handle statistics screen (separate from state for flexibility)
-                if self.current_screen == 'statistics':
-                    self.handle_statistics_events(event)
             
             # Update game logic
             if self.state == 'game':
                 self.update_snake_game()
             
-            # Draw appropriate screen based on current_screen when not in game
+            # Draw appropriate screen
             if self.state == 'connection':
-                if self.current_screen == 'statistics':
-                    self.draw_statistics_screen()
-                else:
-                    self.draw_connection_screen()
+                self.draw_connection_screen()
             elif self.state == 'connecting':
                 self.draw_connecting_screen()
             elif self.state == 'game':
