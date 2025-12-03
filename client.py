@@ -372,6 +372,7 @@ class GameGUI:
         self.game_menu_open = False
         self.show_statistics = False
         self.in_game = False  # Track whether player is in active game or just in lobby
+        self.left_voluntarily = False  # Track if player left game via menu (prevents respawn)
         
         # Game settings
         self.grid_size = 20  # Size of each grid cell
@@ -805,7 +806,8 @@ class GameGUI:
         if self.client and self.client.game_state:
             players = self.client.game_state.get('players', {})
             my_data = players.get(self.client.player_id, {})
-            if not my_data.get('alive', True):
+            # Only show respawn if dead and didn't leave voluntarily
+            if not my_data.get('alive', True) and not self.left_voluntarily:
                 show_respawn = True
         
         if show_respawn:
@@ -997,10 +999,12 @@ class GameGUI:
                                 # Leave game - return to lobby
                                 self.client.send_to_server({'type': 'leave_game'})
                                 self.in_game = False
+                                self.left_voluntarily = True  # Mark as voluntary leave
                             else:
                                 # Start game - join active game
                                 self.client.send_to_server({'type': 'start_game'})
                                 self.in_game = True
+                                self.left_voluntarily = False  # Reset flag when starting game
                             self.game_menu_open = False
                         elif i == 2:  # Disconnect
                             self.client.disconnect()
@@ -1026,6 +1030,7 @@ class GameGUI:
         if is_dead and is_in_game:
             if self.respawn_button.handle_event(event):
                 self.client.respawn()
+                self.left_voluntarily = False  # Reset flag after respawn
                 return
         
         # Handle keyboard input for snake direction (only if alive and in game)
