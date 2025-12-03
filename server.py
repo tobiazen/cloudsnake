@@ -608,8 +608,8 @@ class GameServer:
             x, y = bullet['pos']
             direction: str = bullet['direction']
             
-            # Move bullet twice (double speed)
-            for _ in range(2):
+            # Move bullet 3 times (triple speed - 3x snake speed)
+            for _ in range(3):
                 # Calculate new position
                 if direction == 'UP':
                     y -= 1
