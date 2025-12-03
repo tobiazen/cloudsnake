@@ -446,12 +446,24 @@ class GameServer:
             # print(f"🎮 {self.clients[client_address]['player_name']} started game")
     
     def handle_leave_game(self, client_address: Tuple[str, int]) -> None:
-        """Handle player leaving game (returning to lobby)"""
+        """Handle player leaving game (returning to lobby) - same as dying"""
         if client_address in self.clients:
+            player_name = self.clients[client_address]['player_name']
+            final_score = self.clients[client_address].get('score', 0)
+            
+            # Update player statistics (treat as death)
+            self.update_player_stats(player_name, final_score, died=True)
+            
+            # Mark as not in game and not alive
             self.clients[client_address]['in_game'] = False
+            self.clients[client_address]['alive'] = False
+            self.clients[client_address]['bullets'] = 0
+            
             # Remove from occupied cells
             old_set = self.clients[client_address].get('snake_set', set())
             self.occupied_cells.difference_update(old_set)
+            old_set.clear()
+            
             # Keep them connected but not playing
             # print(f"👋 {self.clients[client_address]['player_name']} left game")
     
