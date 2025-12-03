@@ -364,6 +364,10 @@ class GameGUI:
         self.name_input = InputBox(300, 320, 400, 40, last_name)
         self.dropdown_button = Button(705, 320, 40, 40, '▼', DARK_GRAY)
         self.connect_button = Button(400, 400, 200, 50, 'Connect', GREEN)
+        self.stats_button = Button(325, 470, 350, 50, 'View Statistics', PURPLE)
+        
+        # Screen state
+        self.current_screen = 'connection'  # 'connection', 'statistics', 'connecting', 'game'
         
         # Game settings
         self.grid_size = 20  # Size of each grid cell
@@ -457,6 +461,7 @@ class GameGUI:
         self.name_input.draw(self.screen)
         self.dropdown_button.draw(self.screen)
         self.connect_button.draw(self.screen)
+        self.stats_button.draw(self.screen)
         
         # Draw dropdown menu if open
         if self.dropdown_open and self.settings['player_names']:
@@ -488,6 +493,125 @@ class GameGUI:
         instruction = self.small_font.render("Click input boxes to edit, then click Connect", True, GRAY)
         inst_rect = instruction.get_rect(center=(SCREEN_WIDTH // 2, 550))
         self.screen.blit(instruction, inst_rect)
+    
+    def draw_statistics_screen(self) -> None:
+        """Draw the statistics/leaderboard screen"""
+        # Background
+        self.screen.fill(BG_COLOR)
+        
+        # Title with shadow
+        self.draw_text_with_shadow("Statistics & Leaderboard", self.title_font, 120, 30, CYAN, 3)
+        
+        # Back button
+        back_button = Button(50, 30, 120, 40, '← Back', GRAY)
+        back_button.draw(self.screen)
+        
+        # Get leaderboard data from game state
+        leaderboard = []
+        all_time_high = 0
+        all_time_player = "None"
+        
+        if self.client and self.client.game_state:
+            leaderboard = self.client.game_state.get('leaderboard', [])
+            all_time_high = self.client.game_state.get('all_time_highscore', 0)
+            all_time_player = self.client.game_state.get('all_time_highscore_player', 'None')
+        
+        # All-time highscore panel
+        panel_y = 100
+        panel_rect = pygame.Rect(50, panel_y, SCREEN_WIDTH - 100, 80)
+        self.draw_gradient_rect(panel_rect.x, panel_rect.y, panel_rect.width, panel_rect.height, 
+                               PANEL_BG, (20, 20, 35))
+        pygame.draw.rect(self.screen, CYAN, panel_rect, 2)
+        
+        trophy_label = self.font.render("TROPHY", True, YELLOW)
+        self.screen.blit(trophy_label, (panel_rect.x + 20, panel_rect.y + 20))
+        
+        all_time_label = self.font.render("All-Time Highscore", True, TEXT_COLOR)
+        self.screen.blit(all_time_label, (panel_rect.x + 100, panel_rect.y + 15))
+        
+        all_time_value = self.font.render(f"{all_time_high:,} by {all_time_player}", True, YELLOW)
+        self.screen.blit(all_time_value, (panel_rect.x + 100, panel_rect.y + 45))
+        
+        # Leaderboard section
+        leaderboard_y = panel_y + 100
+        leaderboard_label = self.font.render("Top Players", True, CYAN)
+        self.screen.blit(leaderboard_label, (50, leaderboard_y))
+        
+        # Column headers
+        headers_y = leaderboard_y + 40
+        header_font = self.small_font
+        rank_x = 80
+        name_x = 140
+        score_x = 400
+        games_x = 550
+        kills_x = 680
+        deaths_x = 800
+        
+        self.screen.blit(header_font.render("Rank", True, GRAY), (rank_x, headers_y))
+        self.screen.blit(header_font.render("Player", True, GRAY), (name_x, headers_y))
+        self.screen.blit(header_font.render("Highscore", True, GRAY), (score_x, headers_y))
+        self.screen.blit(header_font.render("Games", True, GRAY), (games_x, headers_y))
+        self.screen.blit(header_font.render("Kills", True, GRAY), (kills_x, headers_y))
+        self.screen.blit(header_font.render("Deaths", True, GRAY), (deaths_x, headers_y))
+        
+        # Draw leaderboard entries
+        entry_y = headers_y + 35
+        for i, entry in enumerate(leaderboard[:10]):
+            # Alternating background
+            if i % 2 == 0:
+                entry_rect = pygame.Rect(70, entry_y + i * 35 - 5, SCREEN_WIDTH - 140, 32)
+                pygame.draw.rect(self.screen, (20, 20, 30), entry_rect)
+            
+            # Rank with medal for top 3
+            if i == 0:
+                rank_text = "#1"
+                rank_color = YELLOW
+            elif i == 1:
+                rank_text = "#2"
+                rank_color = (192, 192, 192)  # Silver
+            elif i == 2:
+                rank_text = "#3"
+                rank_color = ORANGE
+            else:
+                rank_text = f"#{i + 1}"
+                rank_color = TEXT_COLOR
+            
+            rank_surf = self.small_font.render(rank_text, True, rank_color)
+            self.screen.blit(rank_surf, (rank_x, entry_y + i * 35))
+            
+            # Player name (truncate if too long)
+            name = entry.get('name', 'Unknown')
+            if len(name) > 20:
+                name = name[:17] + "..."
+            name_surf = self.small_font.render(name, True, TEXT_COLOR)
+            self.screen.blit(name_surf, (name_x, entry_y + i * 35))
+            
+            # Stats
+            highscore = entry.get('highscore', 0)
+            games_played = entry.get('games_played', 0)
+            total_kills = entry.get('total_kills', 0)
+            total_deaths = entry.get('total_deaths', 0)
+            
+            score_surf = self.small_font.render(f"{highscore:,}", True, YELLOW)
+            self.screen.blit(score_surf, (score_x, entry_y + i * 35))
+            
+            games_surf = self.small_font.render(str(games_played), True, TEXT_COLOR)
+            self.screen.blit(games_surf, (games_x, entry_y + i * 35))
+            
+            kills_surf = self.small_font.render(str(total_kills), True, GREEN)
+            self.screen.blit(kills_surf, (kills_x, entry_y + i * 35))
+            
+            deaths_surf = self.small_font.render(str(total_deaths), True, RED)
+            self.screen.blit(deaths_surf, (deaths_x, entry_y + i * 35))
+        
+        # If no data available
+        if not leaderboard:
+            no_data_text = self.font.render("Connect to server to view statistics", True, GRAY)
+            no_data_rect = no_data_text.get_rect(center=(SCREEN_WIDTH // 2, 400))
+            self.screen.blit(no_data_text, no_data_rect)
+        
+        # Store back button for click detection
+        self.back_button = back_button
     
     def draw_connecting_screen(self) -> None:
         """Draw the connecting screen"""
@@ -787,6 +911,16 @@ class GameGUI:
         if self.connect_button.handle_event(event):
             # Start connection
             self.start_connection()
+        
+        if self.stats_button.handle_event(event):
+            # Switch to statistics screen
+            self.current_screen = 'statistics'
+    
+    def handle_statistics_events(self, event: Any) -> None:
+        """Handle events on statistics screen"""
+        if hasattr(self, 'back_button') and self.back_button.handle_event(event):
+            # Return to connection screen
+            self.current_screen = 'connection'
     
     def handle_game_events(self, event: Any) -> None:
         """Handle events during game"""
@@ -912,14 +1046,21 @@ class GameGUI:
                     self.handle_connection_events(event)
                 elif self.state == 'game':
                     self.handle_game_events(event)
+                
+                # Handle statistics screen (separate from state for flexibility)
+                if self.current_screen == 'statistics':
+                    self.handle_statistics_events(event)
             
             # Update game logic
             if self.state == 'game':
                 self.update_snake_game()
             
-            # Draw appropriate screen
+            # Draw appropriate screen based on current_screen when not in game
             if self.state == 'connection':
-                self.draw_connection_screen()
+                if self.current_screen == 'statistics':
+                    self.draw_statistics_screen()
+                else:
+                    self.draw_connection_screen()
             elif self.state == 'connecting':
                 self.draw_connecting_screen()
             elif self.state == 'game':
