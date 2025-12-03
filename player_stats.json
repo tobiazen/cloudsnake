@@ -1,0 +1,22 @@
+{
+  "players": {
+    "TestPlayer1": {
+      "highscore": 500,
+      "games_played": 0,
+      "total_kills": 0,
+      "total_deaths": 3,
+      "last_seen": "2025-12-03T21:50:08.730220"
+    },
+    "TestPlayer2": {
+      "highscore": 300,
+      "games_played": 0,
+      "total_kills": 0,
+      "total_deaths": 2,
+      "last_seen": "2025-12-03T21:50:08.730303"
+    }
+  },
+  "all_time_highscore": 500,
+  "all_time_highscore_player": "TestPlayer1",
+  "total_games": 0,
+  "last_updated": "2025-12-03T21:50:08.730304"
+}

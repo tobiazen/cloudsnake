@@ -2,7 +2,9 @@ import socket
 import threading
 import time
 import json
+import os
 from typing import Dict, Tuple, Any, List, Set, Optional
+from datetime import datetime
 
 # Type alias for player data dictionary
 PlayerData = Dict[str, Any]
@@ -67,6 +69,88 @@ class GameServer:
         self.broadcast_interval = 0.5  # 2Hz = 0.5 seconds
         # Cached occupied cells for quick membership checks
         self.occupied_cells: set[Tuple[int, int]] = set()
+        
+        # Statistics tracking
+        self.stats_file = 'player_stats.json'
+        self.stats: Dict[str, Any] = self.load_stats()
+        
+    def load_stats(self) -> Dict[str, Any]:
+        """Load player statistics from file"""
+        if os.path.exists(self.stats_file):
+            try:
+                with open(self.stats_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"⚠️  Error loading stats: {e}")
+                return self.create_empty_stats()
+        return self.create_empty_stats()
+    
+    def create_empty_stats(self) -> Dict[str, Any]:
+        """Create empty statistics structure"""
+        return {
+            'players': {},  # {player_name: {highscore, games_played, total_kills, total_deaths, last_seen}}
+            'all_time_highscore': 0,
+            'all_time_highscore_player': None,
+            'total_games': 0,
+            'last_updated': datetime.now().isoformat()
+        }
+    
+    def save_stats(self) -> None:
+        """Save player statistics to file"""
+        try:
+            self.stats['last_updated'] = datetime.now().isoformat()
+            with open(self.stats_file, 'w') as f:
+                json.dump(self.stats, f, indent=2)
+        except Exception as e:
+            print(f"⚠️  Error saving stats: {e}")
+    
+    def update_player_stats(self, player_name: str, score: int, kills: int = 0, died: bool = False) -> None:
+        """Update statistics for a player"""
+        if player_name not in self.stats['players']:
+            self.stats['players'][player_name] = {
+                'highscore': 0,
+                'games_played': 0,
+                'total_kills': 0,
+                'total_deaths': 0,
+                'last_seen': datetime.now().isoformat()
+            }
+        
+        player_stats = self.stats['players'][player_name]
+        
+        # Update highscore
+        if score > player_stats['highscore']:
+            player_stats['highscore'] = score
+            
+        # Update all-time highscore
+        if score > self.stats['all_time_highscore']:
+            self.stats['all_time_highscore'] = score
+            self.stats['all_time_highscore_player'] = player_name
+        
+        # Update kills and deaths
+        player_stats['total_kills'] += kills
+        if died:
+            player_stats['total_deaths'] += 1
+        
+        player_stats['last_seen'] = datetime.now().isoformat()
+        
+        # Save periodically
+        self.save_stats()
+    
+    def get_top_players(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get top players by highscore"""
+        players = []
+        for name, stats in self.stats['players'].items():
+            players.append({
+                'name': name,
+                'highscore': stats['highscore'],
+                'games_played': stats['games_played'],
+                'total_kills': stats['total_kills'],
+                'total_deaths': stats['total_deaths']
+            })
+        
+        # Sort by highscore descending
+        players.sort(key=lambda x: x['highscore'], reverse=True)
+        return players[:limit]
         
     def start(self) -> None:
         """Start the server"""
@@ -221,6 +305,19 @@ class GameServer:
             # Add to game state
             self.game_state['players'][str(client_address)] = self.clients[client_address].copy()
             
+            # Track player joining (start a new game session)
+            if player_name not in self.stats['players']:
+                self.stats['players'][player_name] = {
+                    'highscore': 0,
+                    'games_played': 0,
+                    'total_kills': 0,
+                    'total_deaths': 0,
+                    'last_seen': datetime.now().isoformat()
+                }
+            self.stats['players'][player_name]['games_played'] += 1
+            self.stats['total_games'] += 1
+            self.save_stats()
+            
             # print(f"✅ Client connected: {player_name} from {client_address[0]}:{client_address[1]}")
             # print(f"   Assigned color: RGB{color}")
             # print(f"   Total clients: {len(self.clients)}\n")
@@ -242,8 +339,12 @@ class GameServer:
     def handle_disconnect(self, client_address: Tuple[str, int]) -> None:
         """Handle client disconnection"""
         if client_address in self.clients:
-            _player_name = self.clients[client_address]['player_name']
+            player_name = self.clients[client_address]['player_name']
             player_color = self.clients[client_address].get('color')
+            final_score = self.clients[client_address].get('score', 0)
+            
+            # Update player statistics on disconnect
+            self.update_player_stats(player_name, final_score)
             
             # Free up the color for reuse
             if player_color and player_color in self.used_colors:
@@ -444,7 +545,8 @@ class GameServer:
             bullet: BulletData = {
                 'pos': list(head),  # [x, y] for JSON serialization
                 'direction': direction,
-                'owner': str(client_address)
+                'owner': str(client_address),
+                'shooter_name': client_data.get('player_name', 'Unknown')
             }
             self.bullets.append(bullet)
     
@@ -499,8 +601,16 @@ class GameServer:
                             # Check if it's a headshot (index 0)
                             if hit_index == 0:
                                 # Kill the snake and clean up
+                                victim_name = client_data['player_name']
+                                victim_score = client_data.get('score', 0)
                                 client_data['alive'] = False
                                 client_data['bullets'] = 0
+                                
+                                # Update statistics for killer and victim
+                                shooter_name = bullet.get('shooter_name', 'Unknown')
+                                if shooter_name != 'Unknown':
+                                    self.update_player_stats(shooter_name, 0, kills=1)
+                                self.update_player_stats(victim_name, victim_score, died=True)
                                 
                                 # Remove snake from occupied cells
                                 snake_set = client_data.get('snake_set', set())
@@ -574,15 +684,21 @@ class GameServer:
             # Check collision with walls
             if (new_head[0] < 0 or new_head[0] >= self.grid_width or
                 new_head[1] < 0 or new_head[1] >= self.grid_height):
+                player_name = client_data['player_name']
+                final_score = client_data.get('score', 0)
                 client_data['alive'] = False
                 client_data['bullets'] = 0
+                self.update_player_stats(player_name, final_score, died=True)
                 # print(f"💀 {client_data['player_name']} hit a wall!")
                 continue
             
             # Check collision with own snake via set membership
             if new_head in client_data.get('snake_set', set()):
+                player_name = client_data['player_name']
+                final_score = client_data.get('score', 0)
                 client_data['alive'] = False
                 client_data['bullets'] = 0
+                self.update_player_stats(player_name, final_score, died=True)
                 # print(f"💀 {client_data['player_name']} hit themselves!")
                 continue
             
@@ -671,6 +787,11 @@ class GameServer:
                 self.game_state['bricks'] = self.bricks.copy()
                 self.game_state['bullet_bricks'] = self.bullet_bricks.copy()
                 self.game_state['bullets'] = self.bullets.copy()
+                
+                # Add leaderboard to game state
+                self.game_state['leaderboard'] = self.get_top_players(10)
+                self.game_state['all_time_highscore'] = self.stats['all_time_highscore']
+                self.game_state['all_time_highscore_player'] = self.stats['all_time_highscore_player']
                 
                 # Prepare broadcast message
                 broadcast_msg: Dict[str, Any] = {
