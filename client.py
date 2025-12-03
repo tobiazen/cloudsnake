@@ -11,7 +11,7 @@ pygame.init()
 
 # Constants
 SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 700
+SCREEN_HEIGHT = 730
 FPS = 60
 
 # Colors - Enhanced palette
@@ -383,7 +383,7 @@ class GameGUI:
         self.update_interval = 0.15  # Move every 0.15 seconds
         
         # Respawn button (shown when dead)
-        self.respawn_button = Button(350, 350, 300, 60, 'Respawn', GREEN)
+        self.respawn_button = Button(350, 380, 300, 60, 'Respawn', GREEN)
         
         # Fonts
         self.title_font = pygame.font.Font(None, 72)
@@ -804,7 +804,7 @@ class GameGUI:
         
         # Side panel for game state
         panel_x = self.game_offset_x + self.game_area_width + 20
-        panel_y = 80
+        panel_y = 110
         panel_width = SCREEN_WIDTH - panel_x - 20
         panel = pygame.Rect(panel_x, panel_y, panel_width, SCREEN_HEIGHT - 100)
         pygame.draw.rect(self.screen, LIGHT_GRAY, panel)
