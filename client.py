@@ -376,7 +376,7 @@ class GameGUI:
         self.game_area_width = self.grid_width * self.grid_size
         self.game_area_height = self.grid_height * self.grid_size
         self.game_offset_x = 20
-        self.game_offset_y = 80
+        self.game_offset_y = 110  # Moved down to create space for menu button
         
         # Game state
         self.last_update = time.time()
