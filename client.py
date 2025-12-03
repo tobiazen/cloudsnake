@@ -658,38 +658,6 @@ class GameGUI:
             score_text = self.font.render(f"Score: {score}", True, YELLOW)
             self.screen.blit(score_text, (300, 15))
             
-            # Menu button in top right
-            menu_button = Button(SCREEN_WIDTH - 120, 10, 100, 40, 'Menu ▼', PURPLE)
-            menu_button.draw(self.screen)
-            self.menu_button = menu_button  # Store for event handling
-            
-            # Draw menu dropdown if open
-            if self.game_menu_open:
-                menu_x = SCREEN_WIDTH - 200
-                menu_y = 55
-                menu_items = ['Statistics', 'Disconnect']
-                
-                for i, item in enumerate(menu_items):
-                    item_rect = pygame.Rect(menu_x, menu_y + i * 40, 180, 38)
-                    mouse_pos = pygame.mouse.get_pos()
-                    
-                    if item_rect.collidepoint(mouse_pos):
-                        pygame.draw.rect(self.screen, HIGHLIGHT_COLOR, item_rect)
-                        text_color = WHITE
-                    else:
-                        pygame.draw.rect(self.screen, PANEL_BG, item_rect)
-                        text_color = TEXT_COLOR
-                    
-                    pygame.draw.rect(self.screen, BORDER_COLOR, item_rect, 2)
-                    item_text = self.small_font.render(item, True, text_color)
-                    self.screen.blit(item_text, (item_rect.x + 10, item_rect.y + 10))
-                
-                # Store menu items for click detection
-                self.menu_items_rects = [
-                    pygame.Rect(menu_x, menu_y + i * 40, 180, 38) 
-                    for i in range(len(menu_items))
-                ]
-            
             # Connection status - check timeout
             if self.client.connected:
                 time_since_update = time.time() - self.client.last_update_time
@@ -913,6 +881,40 @@ class GameGUI:
         controls_y = SCREEN_HEIGHT - 50
         controls = self.small_font.render("Arrow Keys: Move | SPACE: Shoot | R: Respawn | ESC: Quit", True, BLACK)
         self.screen.blit(controls, (20, controls_y))
+        
+        # Menu button and dropdown (rendered last to be on top)
+        if self.client:
+            # Menu button positioned under player name on the left
+            menu_button = Button(20, 50, 100, 35, 'Menu ▼', PURPLE)
+            menu_button.draw(self.screen)
+            self.menu_button = menu_button  # Store for event handling
+            
+            # Draw menu dropdown if open
+            if self.game_menu_open:
+                menu_x = 20
+                menu_y = 90
+                menu_items = ['Statistics', 'Disconnect']
+                
+                for i, item in enumerate(menu_items):
+                    item_rect = pygame.Rect(menu_x, menu_y + i * 40, 180, 38)
+                    mouse_pos = pygame.mouse.get_pos()
+                    
+                    if item_rect.collidepoint(mouse_pos):
+                        pygame.draw.rect(self.screen, HIGHLIGHT_COLOR, item_rect)
+                        text_color = WHITE
+                    else:
+                        pygame.draw.rect(self.screen, PANEL_BG, item_rect)
+                        text_color = TEXT_COLOR
+                    
+                    pygame.draw.rect(self.screen, BORDER_COLOR, item_rect, 2)
+                    item_text = self.small_font.render(item, True, text_color)
+                    self.screen.blit(item_text, (item_rect.x + 10, item_rect.y + 10))
+                
+                # Store menu items for click detection
+                self.menu_items_rects = [
+                    pygame.Rect(menu_x, menu_y + i * 40, 180, 38) 
+                    for i in range(len(menu_items))
+                ]
     
     def handle_connection_events(self, event: Any) -> None:
         """Handle events on connection screen"""
@@ -983,7 +985,7 @@ class GameGUI:
                         return
             
             # Close menu if clicking outside
-            menu_area = pygame.Rect(SCREEN_WIDTH - 200, 55, 180, 80)
+            menu_area = pygame.Rect(20, 50, 180, 128)
             if not menu_area.collidepoint(mouse_pos):
                 self.game_menu_open = False
         
