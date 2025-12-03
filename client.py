@@ -382,8 +382,8 @@ class GameGUI:
         self.last_update = time.time()
         self.update_interval = 0.15  # Move every 0.15 seconds
         
-        # Respawn button (shown when dead)
-        self.respawn_button = Button(350, 380, 300, 60, 'Respawn', GREEN)
+        # Respawn button (shown when dead) - will be positioned dynamically
+        self.respawn_button = Button(350, 380, 150, 30, 'Respawn', GREEN)
         
         # Fonts
         self.title_font = pygame.font.Font(None, 72)
@@ -799,7 +799,11 @@ class GameGUI:
                                                      self.game_offset_y + self.game_area_height // 2 - 50))
             self.screen.blit(death_text, death_rect)
             
-            # Respawn button
+            # Respawn button - center it under the death message
+            button_x = self.game_offset_x + self.game_area_width // 2 - 75  # Center 150px button
+            button_y = death_rect.bottom + 20  # 20px below the text
+            self.respawn_button.rect.x = button_x
+            self.respawn_button.rect.y = button_y
             self.respawn_button.draw(self.screen)
         
         # Side panel for game state
