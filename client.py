@@ -378,10 +378,10 @@ class GameGUI:
         server_ip = self.settings.get('server_ip', '129.151.219.36')
         last_name = self.settings.get('last_player_name', '')
         
-        self.ip_input = InputBox(300, 250, 400, 40, server_ip)
-        self.name_input = InputBox(300, 320, 400, 40, last_name)
-        self.dropdown_button = Button(705, 320, 40, 40, '▼', DARK_GRAY)
-        self.connect_button = Button(400, 400, 200, 50, 'Connect', GREEN)
+        self.ip_input = InputBox(300, 280, 400, 40, server_ip)
+        self.name_input = InputBox(300, 350, 400, 40, last_name)
+        self.dropdown_button = Button(705, 350, 40, 40, '▼', DARK_GRAY)
+        self.connect_button = Button(400, 430, 200, 50, 'Connect', GREEN)
         
         # Game menu state
         self.game_menu_open = False
@@ -410,6 +410,17 @@ class GameGUI:
         self.title_font = get_unicode_font(52)
         self.font = get_unicode_font(23)
         self.small_font = get_unicode_font(18)
+        
+        # Load logo image
+        try:
+            self.logo_image = pygame.image.load('assets/cloudesnake.png')
+            # Scale logo if needed (keep aspect ratio)
+            logo_width = 500
+            logo_height = int(self.logo_image.get_height() * (logo_width / self.logo_image.get_width()))
+            self.logo_image = pygame.transform.scale(self.logo_image, (logo_width, logo_height))
+        except Exception as e:
+            print(f"Warning: Could not load logo image: {e}")
+            self.logo_image = None
     
     def draw_text_with_shadow(self, text: str, font: Any, x: int, y: int, color: Tuple[int, int, int], shadow_offset: int = 2) -> None:
         """Draw text with shadow for better readability"""
@@ -467,15 +478,21 @@ class GameGUI:
         # Background gradient
         self.screen.fill(BG_COLOR)
         
-        # Title with shadow
-        self.draw_text_with_shadow("CloudSnake", self.title_font, SCREEN_WIDTH // 2 - 150, 80, CYAN, 3)
+        # Logo image or fallback to text title
+        if self.logo_image:
+            logo_x = (SCREEN_WIDTH - self.logo_image.get_width()) // 2
+            logo_y = 0
+            self.screen.blit(self.logo_image, (logo_x, logo_y))
+        else:
+            # Fallback to text title with shadow
+            self.draw_text_with_shadow("CloudSnake", self.title_font, SCREEN_WIDTH // 2 - 150, 80, CYAN, 3)
         
         # Labels
         ip_label = self.font.render("Server IP:", True, TEXT_COLOR)
-        self.screen.blit(ip_label, (300, 220))
+        self.screen.blit(ip_label, (300, 250))
         
         name_label = self.font.render("Player Name:", True, TEXT_COLOR)
-        self.screen.blit(name_label, (300, 290))
+        self.screen.blit(name_label, (300, 320))
         
         # Input boxes and button
         self.ip_input.draw(self.screen)
@@ -485,7 +502,7 @@ class GameGUI:
         
         # Draw dropdown menu if open
         if self.dropdown_open and self.settings['player_names']:
-            dropdown_y = 365
+            dropdown_y = 395
             for i, name in enumerate(self.settings['player_names'][:10]):
                 item_rect = pygame.Rect(300, dropdown_y + i * 35, 400, 35)
                 # Highlight hovered item
@@ -506,12 +523,12 @@ class GameGUI:
         # Error message
         if self.connection_error:
             error_text = self.font.render(self.connection_error, True, RED)
-            error_rect = error_text.get_rect(center=(SCREEN_WIDTH // 2, 480))
+            error_rect = error_text.get_rect(center=(SCREEN_WIDTH // 2, 510))
             self.screen.blit(error_text, error_rect)
         
         # Instructions
         instruction = self.small_font.render("Click input boxes to edit, then click Connect", True, GRAY)
-        inst_rect = instruction.get_rect(center=(SCREEN_WIDTH // 2, 550))
+        inst_rect = instruction.get_rect(center=(SCREEN_WIDTH // 2, 580))
         self.screen.blit(instruction, inst_rect)
     
     def draw_statistics_screen(self) -> None:
