@@ -513,11 +513,11 @@ class GameServer:
             if pos not in occupied:
                 # 2% chance of spawning a bomb brick
                 rand_val = random.random()
-                if rand_val < 0.02:
+                if rand_val < 0.5:
                     self.bomb_bricks.append([x, y])
                     self.bomb_bricks_set.add(pos)
                 # 5% chance of spawning a bullet brick
-                elif rand_val < 0.07:
+                elif rand_val < 0.9:
                     self.bullet_bricks.append([x, y])
                     self.bullet_bricks_set.add(pos)
                 else:
@@ -760,6 +760,7 @@ class GameServer:
                                 victim_score = client_data.get('score', 0)
                                 client_data['alive'] = False
                                 client_data['bullets'] = 0
+                                client_data['bombs'] = 0
                                 
                                 # Update statistics for killer and victim
                                 shooter_name = bullet.get('shooter_name', 'Unknown')
@@ -942,6 +943,7 @@ class GameServer:
                 final_score = client_data.get('score', 0)
                 client_data['alive'] = False
                 client_data['bullets'] = 0
+                client_data['bombs'] = 0
                 self.update_player_stats(player_name, final_score, died=True)
                 # print(f"💀 {client_data['player_name']} hit a wall!")
                 continue
@@ -952,6 +954,7 @@ class GameServer:
                 final_score = client_data.get('score', 0)
                 client_data['alive'] = False
                 client_data['bullets'] = 0
+                client_data['bombs'] = 0
                 self.update_player_stats(player_name, final_score, died=True)
                 # print(f"💀 {client_data['player_name']} hit themselves!")
                 continue
