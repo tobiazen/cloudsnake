@@ -952,15 +952,17 @@ class GameGUI:
         panel_x = self.game_offset_x + self.game_area_width + 20
         panel_y = 110
         panel_width = SCREEN_WIDTH - panel_x - 20
-        panel = pygame.Rect(panel_x, panel_y, panel_width, SCREEN_HEIGHT - 100)
-        pygame.draw.rect(self.screen, LIGHT_GRAY, panel)
-        pygame.draw.rect(self.screen, DARK_GRAY, panel, 2)
+        
+        # Draw gray background panel for player list area
+        panel_bg = pygame.Rect(panel_x, panel_y, panel_width, SCREEN_HEIGHT - panel_y - 40)
+        pygame.draw.rect(self.screen, GRAY, panel_bg)
+        pygame.draw.rect(self.screen, DARK_GRAY, panel_bg, 2)
         
         # Panel title
         panel_title = self.small_font.render("Players", True, BLACK)
         self.screen.blit(panel_title, (panel_x + 10, panel_y + 10))
         
-        # Display player list
+        # Display player list with individual panels
         if self.client and self.client.game_state:
             players = self.client.game_state.get('players', {})
             y_offset = panel_y + 40
@@ -978,6 +980,20 @@ class GameGUI:
                 bullets = player_info.get('bullets', 0)
                 bombs = player_info.get('bombs', 0)
                 
+                # Draw individual panel for each player (with padding from edges)
+                player_panel_height = 72
+                player_panel_padding = 5
+                player_panel = pygame.Rect(panel_x + player_panel_padding, y_offset - 2, 
+                                          panel_width - (player_panel_padding * 2), player_panel_height)
+                
+                # Highlight current player's panel
+                if player_id == self.client.player_id:
+                    pygame.draw.rect(self.screen, (240, 248, 255), player_panel)  # Light blue background
+                    pygame.draw.rect(self.screen, snake_color, player_panel, 3)  # Thick colored border
+                else:
+                    pygame.draw.rect(self.screen, WHITE, player_panel)  # White background
+                    pygame.draw.rect(self.screen, LIGHT_GRAY, player_panel, 2)  # Gray border
+                
                 # Truncate long names
                 if len(name) > 10:
                     name = name[:10] + ".."
@@ -992,22 +1008,22 @@ class GameGUI:
                 # Show dead status
                 status = "💀" if not alive else ""
                 
-                # Draw player info
+                # Draw player info inside the panel
                 name_text = self.small_font.render(f"{name} {status}", True, text_color)
-                self.screen.blit(name_text, (panel_x + 5, y_offset))
+                self.screen.blit(name_text, (panel_x + player_panel_padding + 5, y_offset))
                 
                 score_text = self.small_font.render(f"Score: {score}", True, DARK_GRAY)
-                self.screen.blit(score_text, (panel_x + 5, y_offset + 18))
+                self.screen.blit(score_text, (panel_x + player_panel_padding + 5, y_offset + 18))
                 
                 # Show bullet count under score
                 bullets_text = self.small_font.render(f"Bullets: {bullets}", True, BLUE)
-                self.screen.blit(bullets_text, (panel_x + 5, y_offset + 36))
+                self.screen.blit(bullets_text, (panel_x + player_panel_padding + 5, y_offset + 36))
                 
                 # Show bomb count under bullets in red
                 bombs_text = self.small_font.render(f"Bombs: {bombs}", True, RED)
-                self.screen.blit(bombs_text, (panel_x + 5, y_offset + 54))
+                self.screen.blit(bombs_text, (panel_x + player_panel_padding + 5, y_offset + 54))
                 
-                y_offset += 76
+                y_offset += player_panel_height + 4  # 4px spacing between panels
                 
                 if y_offset > panel_y + SCREEN_HEIGHT - 200:
                     break
