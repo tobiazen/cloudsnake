@@ -51,10 +51,26 @@ def get_resource_path(relative_path: str) -> str:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         import sys
         base_path = sys._MEIPASS  # type: ignore
+        print(f"DEBUG: Running in PyInstaller bundle, base_path: {base_path}")
     except Exception:
         base_path = os.path.abspath(".")
+        print(f"DEBUG: Running in development mode, base_path: {base_path}")
     
-    return os.path.join(base_path, relative_path)
+    full_path = os.path.join(base_path, relative_path)
+    
+    # Debug: list what's in the assets directory
+    assets_dir = os.path.join(base_path, 'assets')
+    if os.path.exists(assets_dir):
+        print(f"DEBUG: Contents of assets directory:")
+        try:
+            for item in os.listdir(assets_dir):
+                print(f"  - {item}")
+        except Exception as e:
+            print(f"  ERROR listing directory: {e}")
+    else:
+        print(f"DEBUG: Assets directory does not exist at: {assets_dir}")
+    
+    return full_path
 
 # UI Colors
 BG_COLOR = (15, 15, 25)
@@ -425,13 +441,22 @@ class GameGUI:
         # Load logo image
         try:
             logo_path = get_resource_path('assets/cloudesnake.png')
-            self.logo_image = pygame.image.load(logo_path)
-            # Scale logo if needed (keep aspect ratio)
-            logo_width = 500
-            logo_height = int(self.logo_image.get_height() * (logo_width / self.logo_image.get_width()))
-            self.logo_image = pygame.transform.scale(self.logo_image, (logo_width, logo_height))
+            print(f"DEBUG: Attempting to load logo from: {logo_path}")
+            print(f"DEBUG: File exists: {os.path.exists(logo_path)}")
+            if os.path.exists(logo_path):
+                self.logo_image = pygame.image.load(logo_path)
+                # Scale logo if needed (keep aspect ratio)
+                logo_width = 500
+                logo_height = int(self.logo_image.get_height() * (logo_width / self.logo_image.get_width()))
+                self.logo_image = pygame.transform.scale(self.logo_image, (logo_width, logo_height))
+                print(f"DEBUG: Logo loaded successfully")
+            else:
+                print(f"DEBUG: Logo file not found at path")
+                self.logo_image = None
         except Exception as e:
             print(f"Warning: Could not load logo image: {e}")
+            import traceback
+            traceback.print_exc()
             self.logo_image = None
     
     def draw_text_with_shadow(self, text: str, font: Any, x: int, y: int, color: Tuple[int, int, int], shadow_offset: int = 2) -> None:
