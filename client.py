@@ -32,6 +32,19 @@ ORANGE = (255, 140, 0)
 PURPLE = (136, 23, 152)
 CYAN = (0, 188, 212)
 
+# Fonts: ensure Unicode-capable font for icons (e.g., '▼', '✕')
+def get_unicode_font(size: int) -> pygame.font.Font:
+    """Return a pygame Font with good Unicode coverage (fallbacks to default)."""
+    try:
+        # Try common Unicode-capable fonts
+        font_path = pygame.font.match_font('dejavusans,arial unicode ms,noto sans,liberation sans')
+        if font_path:
+            return pygame.font.Font(font_path, size)
+    except Exception:
+        pass
+    # Fallback to default font
+    return pygame.font.Font(None, size)
+
 # UI Colors
 BG_COLOR = (15, 15, 25)
 PANEL_BG = (25, 25, 40)
@@ -280,7 +293,8 @@ class InputBox:
         self.rect = pygame.Rect(x, y, w, h)
         self.color = BORDER_COLOR
         self.text = text
-        self.font = pygame.font.Font(None, 32)
+        # ~30% smaller than original then minus 12% more -> 23
+        self.font = get_unicode_font(23)
         self.active = False
         
     def handle_event(self, event: Any) -> bool:
@@ -313,7 +327,8 @@ class Button:
         self.text = text
         self.color = color
         self.hover_color = (min(color[0] + 30, 255), min(color[1] + 30, 255), min(color[2] + 30, 255))
-        self.font = pygame.font.Font(None, 32)
+        # ~30% smaller than original then minus 12% more -> 23
+        self.font = get_unicode_font(23)
         self.hovered = False
         
     def handle_event(self, event: Any) -> bool:
@@ -391,9 +406,10 @@ class GameGUI:
         self.respawn_button = Button(350, 380, 150, 30, 'Respawn', GREEN)
         
         # Fonts
-        self.title_font = pygame.font.Font(None, 72)
-        self.font = pygame.font.Font(None, 32)
-        self.small_font = pygame.font.Font(None, 24)
+        # Additional ~12% reduction from the previous step
+        self.title_font = get_unicode_font(52)
+        self.font = get_unicode_font(23)
+        self.small_font = get_unicode_font(18)
     
     def draw_text_with_shadow(self, text: str, font: Any, x: int, y: int, color: Tuple[int, int, int], shadow_offset: int = 2) -> None:
         """Draw text with shadow for better readability"""
