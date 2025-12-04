@@ -100,6 +100,7 @@ python client.py
 3. **Scoring**: 
    - +1 point for each move
    - +100 points for collecting a regular brick
+   - +250 points for killing another player (headshot with bullet or bomb)
 4. **Shooting System**:
    - **Bullet Bricks**: Light blue squares that spawn randomly (5% chance)
    - **Collecting Bullet Bricks**: Gives you 1 bullet (doesn't grow your snake or award points)
@@ -225,7 +226,7 @@ For internet play:
 
 - Bullet speed: 3x snake movement speed
 - Bullets per bullet brick: 1
-- Headshot: Instant kill
+- Headshot: Instant kill + 250 points to killer
 - Body shot: Truncates snake, -50 points per removed segment
 
 ### Bomb Mechanics
@@ -235,7 +236,7 @@ For internet play:
 - Explosion timer: 2-4 seconds (random)
 - Explosion area: 3x3 grid centered on bomb
 - Bombs per bomb brick: 1
-- Headshot (explosion): Instant kill
+- Headshot (explosion): Instant kill + 250 points to killer
 - Body hit (explosion): Truncates snake, -50 points per removed segment
 - Area damage: Can hit multiple snakes in one explosion
 

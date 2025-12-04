@@ -230,6 +230,9 @@ class TestBombFeature(unittest.TestCase):
         bomb_pos = [24, 15]
         explode_time = time.time() - 0.1  # Already expired
         
+        # Record player 1's initial score (the thrower)
+        initial_score_player1 = self.server.clients[self.player1_addr]['score']
+        
         bomb: Dict[str, Any] = {
             'pos': bomb_pos,
             'explode_time': explode_time,
@@ -250,6 +253,10 @@ class TestBombFeature(unittest.TestCase):
                         "Player hit in head should be dead")
         self.assertEqual(self.server.clients[self.player2_addr]['bombs'], 0,
                         "Bombs should be reset to 0 after death")
+        
+        # Verify player 1 got 250 points for the kill
+        self.assertEqual(self.server.clients[self.player1_addr]['score'], initial_score_player1 + 250,
+                        "Killer should receive 250 points for the kill")
         
         # Verify bomb was removed
         self.assertEqual(len(self.server.bombs), 0)

@@ -749,6 +749,11 @@ class GameServer:
                                 shooter_name = bullet.get('shooter_name', 'Unknown')
                                 if shooter_name != 'Unknown':
                                     self.update_player_stats(shooter_name, 0, kills=1)
+                                    # Award 250 points to the killer
+                                    for addr, data in self.clients.items():
+                                        if data.get('player_name') == shooter_name:
+                                            data['score'] = data.get('score', 0) + 250
+                                            break
                                 self.update_player_stats(victim_name, victim_score, died=True)
                                 
                                 # Remove snake from occupied cells
@@ -841,6 +846,11 @@ class GameServer:
                                         thrower_name = bomb.get('thrower_name', 'Unknown')
                                         if thrower_name != 'Unknown':
                                             self.update_player_stats(thrower_name, 0, kills=1)
+                                            # Award 250 points to the killer
+                                            for addr, data in self.clients.items():
+                                                if data.get('player_name') == thrower_name:
+                                                    data['score'] = data.get('score', 0) + 250
+                                                    break
                                         self.update_player_stats(victim_name, victim_score, died=True)
                                         
                                         # Remove snake from occupied cells

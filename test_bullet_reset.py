@@ -65,19 +65,18 @@ class TestBulletReset(unittest.TestCase):
         self.assertEqual(self.server.clients[self.player1_addr]['bullets'], 5)
         self.assertTrue(self.server.clients[self.player1_addr]['alive'])
         
+        # Record player 2's initial score
+        initial_score_player2 = self.server.clients[self.player2_addr]['score']
+        
         # Create a bullet that will hit player 1's head
         # Bullet is owned by player 2 and positioned at player 1's head
         bullet: Dict[str, Any] = {
-            'pos': [10, 10],  # Player 1's head position (as list for mutability)
+            'pos': [9, 10],  # One position to the left, will move right to (10, 10)
             'direction': 'RIGHT',
-            'owner': self.player2_addr
+            'owner': str(self.player2_addr),
+            'shooter_name': 'TestPlayer2'
         }
         self.server.bullets = [bullet]
-        
-        # Manually trigger the collision (update_bullets moves the bullet, so set it before head)
-        # Instead, let's set bullet position to where it will move TO the head
-        bullet['pos'] = [9, 10]  # One position to the left, will move right to (10, 10)
-        bullet['direction'] = 'RIGHT'
         
         # Process bullet collisions
         self.server.update_bullets()
@@ -87,6 +86,10 @@ class TestBulletReset(unittest.TestCase):
                         "Player should be dead after headshot")
         self.assertEqual(self.server.clients[self.player1_addr]['bullets'], 0,
                         "Bullets should be reset to 0 after death")
+        
+        # Verify player 2 got 250 points for the kill
+        self.assertEqual(self.server.clients[self.player2_addr]['score'], initial_score_player2 + 250,
+                        "Killer should receive 250 points for the kill")
         
         # Verify snake is removed from occupied cells
         player1_snake_set = self.server.clients[self.player1_addr].get('snake_set', set())
