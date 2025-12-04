@@ -966,6 +966,69 @@ class GameGUI:
                 pygame.draw.circle(self.screen, DARK_RED, bomb_center, self.grid_size // 2)
                 # Black center
                 pygame.draw.circle(self.screen, BLACK, bomb_center, self.grid_size // 3)
+            
+            # Draw explosion animations
+            explosions = self.client.game_state.get('explosions', [])
+            current_time = time.time()
+            
+            for explosion in explosions:
+                positions = explosion.get('positions', [])
+                start_time = explosion.get('start_time', 0)
+                duration = explosion.get('duration', 0.4)
+                
+                # Calculate progress (0.0 to 1.0)
+                elapsed = current_time - start_time
+                progress = min(1.0, elapsed / duration) if duration > 0 else 1.0
+                
+                # Draw expanding circles effect
+                for pos in positions:
+                    if isinstance(pos, list) and len(pos) >= 2:
+                        exp_x, exp_y = pos[0], pos[1]
+                    else:
+                        exp_x, exp_y = pos
+                    
+                    center = (
+                        self.game_offset_x + int(exp_x * self.grid_size + self.grid_size // 2),
+                        self.game_offset_y + int(exp_y * self.grid_size + self.grid_size // 2)
+                    )
+                    
+                    # Multiple expanding circles with fading colors
+                    # Early stage (0-0.3): bright orange/yellow
+                    # Mid stage (0.3-0.7): orange/red
+                    # Late stage (0.7-1.0): red fading out
+                    
+                    if progress < 0.3:
+                        # Bright explosion phase
+                        alpha_factor = 1.0 - (progress / 0.3) * 0.3
+                        outer_radius = int(self.grid_size * 0.8 * (progress / 0.3))
+                        # Bright yellow core
+                        if outer_radius > 2:
+                            pygame.draw.circle(self.screen, YELLOW, center, outer_radius)
+                        # Orange middle
+                        mid_radius = int(outer_radius * 0.7)
+                        if mid_radius > 1:
+                            pygame.draw.circle(self.screen, ORANGE, center, mid_radius)
+                    elif progress < 0.7:
+                        # Expanding fire phase
+                        phase_progress = (progress - 0.3) / 0.4
+                        alpha_factor = 1.0 - phase_progress * 0.5
+                        outer_radius = int(self.grid_size * (0.8 + 0.2 * phase_progress))
+                        # Red outer
+                        pygame.draw.circle(self.screen, RED, center, outer_radius)
+                        # Orange inner
+                        inner_radius = int(outer_radius * 0.6)
+                        if inner_radius > 1:
+                            pygame.draw.circle(self.screen, ORANGE, center, inner_radius)
+                    else:
+                        # Fading phase
+                        phase_progress = (progress - 0.7) / 0.3
+                        alpha_factor = 1.0 - phase_progress
+                        outer_radius = int(self.grid_size * (1.0 - 0.2 * phase_progress))
+                        # Darker red, fading
+                        red_value = int(180 * alpha_factor)
+                        fade_color = (red_value, int(red_value * 0.2), 0)
+                        if outer_radius > 1:
+                            pygame.draw.circle(self.screen, fade_color, center, outer_radius)
         
         # Check if current player is dead and show respawn button
         show_respawn = False

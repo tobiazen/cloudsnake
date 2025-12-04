@@ -31,6 +31,7 @@ class GameServer:
             'bomb_bricks': [],  # List of bomb brick positions
             'bullets': [],  # List of active bullets
             'bombs': [],  # List of active bombs
+            'explosions': [],  # List of active explosions with positions and progress
             'timestamp': 0,
             'game_time': 0
         }
@@ -48,6 +49,8 @@ class GameServer:
         self.bullets: List[BulletData] = []
         # Bomb bricks (special bricks that give bombs)
         self.bomb_bricks: List[List[int]] = []
+        # Active explosions: list of dicts with {positions: [(x,y),...], start_time: float, duration: float}
+        self.explosions: List[Dict[str, Any]] = []
         self.bomb_bricks_set: Set[Tuple[int, int]] = set()
         # Active bombs: list of dicts with {pos: (x,y), explode_time: float, owner: client_address}
         self.bombs: List[BombData] = []
@@ -513,11 +516,11 @@ class GameServer:
             if pos not in occupied:
                 # 2% chance of spawning a bomb brick
                 rand_val = random.random()
-                if rand_val < 0.5:
+                if rand_val < 0.02:
                     self.bomb_bricks.append([x, y])
                     self.bomb_bricks_set.add(pos)
                 # 5% chance of spawning a bullet brick
-                elif rand_val < 0.9:
+                elif rand_val < 0.07:
                     self.bullet_bricks.append([x, y])
                     self.bullet_bricks_set.add(pos)
                 else:
@@ -889,12 +892,33 @@ class GameServer:
                                         score_deduction = len(removed_segments) * 50
                                         client_data['score'] = max(0, client_data.get('score', 0) - score_deduction)
                 
+                # Create explosion animation (3x3 area, 0.4 second duration)
+                explosion_positions = []
+                for dx in range(-1, 2):
+                    for dy in range(-1, 2):
+                        exp_x = bomb_x + dx
+                        exp_y = bomb_y + dy
+                        if (0 <= exp_x < self.grid_width and 0 <= exp_y < self.grid_height):
+                            explosion_positions.append([exp_x, exp_y])
+                
+                self.explosions.append({
+                    'positions': explosion_positions,
+                    'start_time': current_time,
+                    'duration': 0.4  # 400ms animation
+                })
+                
                 bombs_to_remove.append(i)
         
         # Remove exploded bombs
         for i in reversed(sorted(set(bombs_to_remove))):
             if i < len(self.bombs):
                 self.bombs.pop(i)
+    
+    def update_explosions(self) -> None:
+        """Remove expired explosion animations"""
+        current_time = time.time()
+        self.explosions = [exp for exp in self.explosions 
+                          if current_time < exp['start_time'] + exp['duration']]
     
     def handle_ping(self, client_address: Tuple[str, int]) -> None:
         """Handle ping from client"""
@@ -1017,6 +1041,7 @@ class GameServer:
                 
                 # Update bombs (check timers and explosions)
                 self.update_bombs()
+                self.update_explosions()
                 
                 # Update game logic (move snakes, check collisions)
                 self.update_game_logic()
@@ -1051,6 +1076,7 @@ class GameServer:
                 self.game_state['bomb_bricks'] = self.bomb_bricks.copy()
                 self.game_state['bullets'] = self.bullets.copy()
                 self.game_state['bombs'] = self.bombs.copy()
+                self.game_state['explosions'] = self.explosions.copy()
                 
                 # Add leaderboard to game state
                 self.game_state['leaderboard'] = self.get_top_players(10)
