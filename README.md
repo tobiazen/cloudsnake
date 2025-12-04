@@ -8,6 +8,7 @@ A multiplayer snake game where players compete to collect bricks and grow their 
 - **Real-time gameplay**: Server broadcasts game state at 2Hz (every 0.5 seconds)
 - **Dynamic brick spawning**: Bricks spawn based on the number of active players
 - **Shooting system**: Collect bullet bricks and shoot at opponents
+- **Bomb system**: Collect bomb bricks and throw area-of-effect explosives
 - **Respawn system**: Players can respawn after death, keeping half their score
 - **Color-coded players**: Each player gets a unique color
 - **GUI interface**: Clean pygame-based graphical interface
@@ -81,6 +82,7 @@ python client.py
   - `←` or `A`: Move left
   - `→` or `D`: Move right
 - **SPACE**: Shoot a bullet (if you have bullets available)
+- **B**: Throw a bomb (if you have bombs available)
 - **R**: Respawn after death (costs half your score)
 - **ESC**: Exit the game
 
@@ -103,30 +105,48 @@ python client.py
    - **Collecting Bullet Bricks**: Gives you 1 bullet (doesn't grow your snake or award points)
    - **Shooting**: Press SPACE to fire a bullet in your current direction
    - **Bullet Mechanics**:
-     - Bullets travel at 2x snake speed
+     - Bullets travel at 3x snake speed
      - **Headshot**: Hitting an opponent's head kills them instantly
      - **Body Shot**: Hitting an opponent's body truncates their snake at the hit point (50 points deducted per removed segment)
      - Bullets are removed when they hit a wall or a snake
-   - **Bullet Count**: Displayed in your player panel (under your score)
-5. **Death**: You die if you:
+   - **Bullet Count**: Displayed in blue text in your player panel (under your score)
+5. **Bomb System**:
+   - **Bomb Bricks**: Red squares that spawn randomly (2% chance)
+   - **Collecting Bomb Bricks**: Gives you 1 bomb (doesn't grow your snake or award points)
+   - **Throwing**: Press B to throw a bomb
+   - **Bomb Mechanics**:
+     - Bombs are thrown **2-5 cells** away (random distance)
+     - Direction is random: **left or right** from your snake's head
+     - Bombs explode after **2-4 seconds** (random timer)
+     - **3x3 Explosion Area**: Damages all snakes within a 3x3 grid centered on the bomb
+     - **Headshot**: If the explosion hits a snake's head, instant kill
+     - **Body Hit**: If the explosion hits a snake's body, truncates from that point (50 points deducted per removed segment)
+     - Multiple snakes can be hit by one explosion
+     - Visual: Bombs appear as black spheres with red glow
+   - **Bomb Count**: Displayed in red text in your player panel (under bullets)
+   - **Strategic Use**: Bombs are powerful but unpredictable - use carefully near groups of snakes!
+6. **Death**: You die if you:
    - Hit a wall
    - Hit yourself
    - Hit another player's snake
    - Get hit by a bullet in the head
-6. **Death Consequences**:
-   - All your bullets are lost
+   - Get hit by a bomb explosion in the head
+7. **Death Consequences**:
+   - All your bullets and bombs are lost
    - Your snake is removed from the game board
-7. **Respawning**: After death, press `R` to respawn with half your previous score and zero bullets
-8. **Safe Spawn**: When spawning, your initial direction is chosen to avoid immediate collisions
+8. **Respawning**: After death, press `R` to respawn with half your previous score and zero bullets/bombs
+9. **Safe Spawn**: When spawning, your initial direction is chosen to avoid immediate collisions
 
 ### Game Screen
 
 - **Your snake**: Highlighted with a thicker outline
 - **Other players**: Different colored snakes
-- **Regular Bricks**: Red squares scattered on the grid
-- **Bullet Bricks**: Light blue squares (give you bullets when collected)
+- **Regular Bricks**: Orange squares scattered on the grid
+- **Bullet Bricks**: Light blue (cyan) squares with blue border (give you bullets when collected)
+- **Bomb Bricks**: Red squares with dark red border (give you bombs when collected)
 - **Active Bullets**: Small red circles moving across the grid
-- **Scoreboard**: Displays all players' names, scores, and bullet counts on the right side
+- **Active Bombs**: Black spheres with red/dark-red glow (explode after 2-4 seconds)
+- **Scoreboard**: Displays all players' names, scores, bullet counts (blue), and bomb counts (red) on the right side
 
 ## Network Configuration
 
@@ -195,13 +215,29 @@ For internet play:
 - 4-5 players: 3 bricks
 - And so on...
 
+### Special Brick Spawn Rates
+
+- **Regular bricks**: 93% chance (orange - grow your snake and award points)
+- **Bullet bricks**: 5% chance (cyan - gives 1 bullet)
+- **Bomb bricks**: 2% chance (red - gives 1 bomb)
+
 ### Shooting Mechanics
 
-- Bullet brick spawn chance: 5%
-- Bullet speed: 2x snake movement speed
+- Bullet speed: 3x snake movement speed
 - Bullets per bullet brick: 1
 - Headshot: Instant kill
 - Body shot: Truncates snake, -50 points per removed segment
+
+### Bomb Mechanics
+
+- Throw distance: 2-5 cells (random)
+- Throw direction: Left or right (random)
+- Explosion timer: 2-4 seconds (random)
+- Explosion area: 3x3 grid centered on bomb
+- Bombs per bomb brick: 1
+- Headshot (explosion): Instant kill
+- Body hit (explosion): Truncates snake, -50 points per removed segment
+- Area damage: Can hit multiple snakes in one explosion
 
 ## Troubleshooting
 
