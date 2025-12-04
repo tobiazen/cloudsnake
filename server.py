@@ -654,24 +654,36 @@ class GameServer:
             # Deduct bomb
             self.clients[client_address]['bombs'] = bombs_count - 1
             
-            # Get player position
+            # Get player position and direction
             snake = client_data.get('snake', [])
             if not snake:
                 return
             
             import random
             head = snake[0]
+            direction = client_data.get('direction', 'RIGHT')
             
-            # Randomly throw bomb to left or right, 2-5 cells away
-            direction = random.choice(['LEFT', 'RIGHT'])
+            # Throw bomb perpendicular to current direction (90 degrees)
+            # Random distance between 2 and 5 cells
             distance = random.randint(2, 5)
             
-            if direction == 'LEFT':
-                bomb_x = head[0] - distance
-            else:  # RIGHT
-                bomb_x = head[0] + distance
-            
-            bomb_y = head[1]
+            # Determine perpendicular directions based on current direction
+            if direction in ['UP', 'DOWN']:
+                # Moving vertically, throw horizontally (LEFT or RIGHT)
+                throw_direction = random.choice(['LEFT', 'RIGHT'])
+                if throw_direction == 'LEFT':
+                    bomb_x = head[0] - distance
+                else:  # RIGHT
+                    bomb_x = head[0] + distance
+                bomb_y = head[1]
+            else:  # LEFT or RIGHT
+                # Moving horizontally, throw vertically (UP or DOWN)
+                throw_direction = random.choice(['UP', 'DOWN'])
+                bomb_x = head[0]
+                if throw_direction == 'UP':
+                    bomb_y = head[1] - distance
+                else:  # DOWN
+                    bomb_y = head[1] + distance
             
             # Clamp position to grid bounds
             bomb_x = max(0, min(bomb_x, self.grid_width - 1))

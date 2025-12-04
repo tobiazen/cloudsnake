@@ -537,6 +537,144 @@ class TestBombFeature(unittest.TestCase):
         self.assertNotIn((25, 17), self.server.occupied_cells)
         self.assertNotIn((25, 18), self.server.occupied_cells)
         self.assertNotIn((25, 19), self.server.occupied_cells)
+    
+    def test_bomb_thrown_perpendicular_to_up_direction(self):
+        """Test that bombs are thrown left or right (perpendicular) when snake is facing UP"""
+        # Set player facing UP at position (20, 15)
+        self.server.clients[self.player1_addr]['direction'] = 'UP'
+        self.server.clients[self.player1_addr]['snake'] = [(20, 15), (20, 16), (20, 17)]
+        self.server.clients[self.player1_addr]['bombs'] = 1
+        
+        # Throw bomb
+        self.server.handle_throw_bomb(self.player1_addr)
+        
+        # Check bomb was created
+        self.assertEqual(len(self.server.bombs), 1)
+        bomb = self.server.bombs[0]
+        
+        # Bomb should be thrown LEFT or RIGHT (perpendicular to UP)
+        # Y position should be same as head (15), X should be different
+        bomb_x, bomb_y = bomb['pos']
+        self.assertEqual(bomb_y, 15, "Bomb Y position should match head when facing UP")
+        self.assertNotEqual(bomb_x, 20, "Bomb X position should be different from head")
+        
+        # Should be 2-5 cells away in X direction
+        distance = abs(bomb_x - 20)
+        self.assertGreaterEqual(distance, 2, "Bomb should be at least 2 cells away")
+        self.assertLessEqual(distance, 5, "Bomb should be at most 5 cells away")
+    
+    def test_bomb_thrown_perpendicular_to_down_direction(self):
+        """Test that bombs are thrown left or right (perpendicular) when snake is facing DOWN"""
+        # Set player facing DOWN
+        self.server.clients[self.player1_addr]['direction'] = 'DOWN'
+        self.server.clients[self.player1_addr]['snake'] = [(20, 15), (20, 14), (20, 13)]
+        self.server.clients[self.player1_addr]['bombs'] = 1
+        
+        # Throw bomb
+        self.server.handle_throw_bomb(self.player1_addr)
+        
+        # Check bomb was created
+        self.assertEqual(len(self.server.bombs), 1)
+        bomb = self.server.bombs[0]
+        
+        # Bomb should be thrown LEFT or RIGHT (perpendicular to DOWN)
+        bomb_x, bomb_y = bomb['pos']
+        self.assertEqual(bomb_y, 15, "Bomb Y position should match head when facing DOWN")
+        self.assertNotEqual(bomb_x, 20, "Bomb X position should be different from head")
+        
+        # Should be 2-5 cells away in X direction
+        distance = abs(bomb_x - 20)
+        self.assertGreaterEqual(distance, 2)
+        self.assertLessEqual(distance, 5)
+    
+    def test_bomb_thrown_perpendicular_to_left_direction(self):
+        """Test that bombs are thrown up or down (perpendicular) when snake is facing LEFT"""
+        # Set player facing LEFT
+        self.server.clients[self.player1_addr]['direction'] = 'LEFT'
+        self.server.clients[self.player1_addr]['snake'] = [(20, 15), (21, 15), (22, 15)]
+        self.server.clients[self.player1_addr]['bombs'] = 1
+        
+        # Throw bomb
+        self.server.handle_throw_bomb(self.player1_addr)
+        
+        # Check bomb was created
+        self.assertEqual(len(self.server.bombs), 1)
+        bomb = self.server.bombs[0]
+        
+        # Bomb should be thrown UP or DOWN (perpendicular to LEFT)
+        bomb_x, bomb_y = bomb['pos']
+        self.assertEqual(bomb_x, 20, "Bomb X position should match head when facing LEFT")
+        self.assertNotEqual(bomb_y, 15, "Bomb Y position should be different from head")
+        
+        # Should be 2-5 cells away in Y direction
+        distance = abs(bomb_y - 15)
+        self.assertGreaterEqual(distance, 2)
+        self.assertLessEqual(distance, 5)
+    
+    def test_bomb_thrown_perpendicular_to_right_direction(self):
+        """Test that bombs are thrown up or down (perpendicular) when snake is facing RIGHT"""
+        # Set player facing RIGHT
+        self.server.clients[self.player1_addr]['direction'] = 'RIGHT'
+        self.server.clients[self.player1_addr]['snake'] = [(20, 15), (19, 15), (18, 15)]
+        self.server.clients[self.player1_addr]['bombs'] = 1
+        
+        # Throw bomb
+        self.server.handle_throw_bomb(self.player1_addr)
+        
+        # Check bomb was created
+        self.assertEqual(len(self.server.bombs), 1)
+        bomb = self.server.bombs[0]
+        
+        # Bomb should be thrown UP or DOWN (perpendicular to RIGHT)
+        bomb_x, bomb_y = bomb['pos']
+        self.assertEqual(bomb_x, 20, "Bomb X position should match head when facing RIGHT")
+        self.assertNotEqual(bomb_y, 15, "Bomb Y position should be different from head")
+        
+        # Should be 2-5 cells away in Y direction
+        distance = abs(bomb_y - 15)
+        self.assertGreaterEqual(distance, 2)
+        self.assertLessEqual(distance, 5)
+    
+    def test_bomb_not_thrown_backwards(self):
+        """Test that bombs are never thrown backwards (opposite to direction)"""
+        test_cases = [
+            ('UP', 20, 15),    # Facing UP, should not throw DOWN
+            ('DOWN', 20, 15),  # Facing DOWN, should not throw UP
+            ('LEFT', 20, 15),  # Facing LEFT, should not throw RIGHT
+            ('RIGHT', 20, 15), # Facing RIGHT, should not throw LEFT
+        ]
+        
+        for direction, head_x, head_y in test_cases:
+            with self.subTest(direction=direction):
+                # Reset bombs
+                self.server.bombs = []
+                
+                # Set player direction and position
+                self.server.clients[self.player1_addr]['direction'] = direction
+                self.server.clients[self.player1_addr]['snake'] = [(head_x, head_y), (head_x, head_y + 1), (head_x, head_y + 2)]
+                self.server.clients[self.player1_addr]['bombs'] = 1
+                
+                # Throw bomb
+                self.server.handle_throw_bomb(self.player1_addr)
+                
+                # Check bomb was created
+                self.assertEqual(len(self.server.bombs), 1)
+                bomb = self.server.bombs[0]
+                bomb_x, bomb_y = bomb['pos']
+                
+                # Verify bomb is not thrown backwards
+                if direction == 'UP':
+                    # Should not throw down (y should not increase)
+                    self.assertLessEqual(bomb_y, head_y, "Bomb should not be thrown DOWN when facing UP")
+                elif direction == 'DOWN':
+                    # Should not throw up (y should not decrease)
+                    self.assertGreaterEqual(bomb_y, head_y, "Bomb should not be thrown UP when facing DOWN")
+                elif direction == 'LEFT':
+                    # Should not throw right (x should not increase)
+                    self.assertLessEqual(bomb_x, head_x, "Bomb should not be thrown RIGHT when facing LEFT")
+                elif direction == 'RIGHT':
+                    # Should not throw left (x should not decrease)
+                    self.assertGreaterEqual(bomb_x, head_x, "Bomb should not be thrown LEFT when facing RIGHT")
 
 
 if __name__ == '__main__':

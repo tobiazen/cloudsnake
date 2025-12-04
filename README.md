@@ -117,7 +117,9 @@ python client.py
    - **Throwing**: Press B to throw a bomb
    - **Bomb Mechanics**:
      - Bombs are thrown **2-5 cells** away (random distance)
-     - Direction is random: **left or right** from your snake's head
+     - Direction: **perpendicular (90 degrees)** to your snake's current direction
+       - If moving UP/DOWN: bomb throws LEFT or RIGHT
+       - If moving LEFT/RIGHT: bomb throws UP or DOWN
      - Bombs explode after **2-4 seconds** (random timer)
      - **3x3 Explosion Area**: Damages all snakes within a 3x3 grid centered on the bomb
      - **Headshot**: If the explosion hits a snake's head, instant kill
