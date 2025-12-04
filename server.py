@@ -570,8 +570,10 @@ class GameServer:
                 if (brick[0], brick[1]) == head:
                     self.bullet_bricks.pop(i)
                     break
-            # Give player a bullet
-            self.clients[client_address]['bullets'] = self.clients[client_address].get('bullets', 0) + 1
+            # Give player a bullet (max 5)
+            current_bullets = self.clients[client_address].get('bullets', 0)
+            if current_bullets < 5:
+                self.clients[client_address]['bullets'] = current_bullets + 1
             # Spawn new brick
             self.spawn_brick()
             return 'bullet'
@@ -584,8 +586,10 @@ class GameServer:
                 if (brick[0], brick[1]) == head:
                     self.bomb_bricks.pop(i)
                     break
-            # Give player a bomb
-            self.clients[client_address]['bombs'] = self.clients[client_address].get('bombs', 0) + 1
+            # Give player a bomb (max 5)
+            current_bombs = self.clients[client_address].get('bombs', 0)
+            if current_bombs < 5:
+                self.clients[client_address]['bombs'] = current_bombs + 1
             # Spawn new brick
             self.spawn_brick()
             return 'bomb'

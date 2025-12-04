@@ -104,16 +104,18 @@ python client.py
 4. **Shooting System**:
    - **Bullet Bricks**: Light blue squares that spawn randomly (5% chance)
    - **Collecting Bullet Bricks**: Gives you 1 bullet (doesn't grow your snake or award points)
+   - **Maximum Bullets**: Limited to 5 bullets - additional bullet bricks collected are discarded
    - **Shooting**: Press SPACE to fire a bullet in your current direction
    - **Bullet Mechanics**:
      - Bullets travel at 3x snake speed
      - **Headshot**: Hitting an opponent's head kills them instantly
      - **Body Shot**: Hitting an opponent's body truncates their snake at the hit point (50 points deducted per removed segment)
      - Bullets are removed when they hit a wall or a snake
-   - **Bullet Count**: Displayed in blue text in your player panel (under your score)
+   - **Bullet Count**: Displayed as blue bullet icons in your player panel (under your score)
 5. **Bomb System**:
    - **Bomb Bricks**: Red squares that spawn randomly (2% chance)
    - **Collecting Bomb Bricks**: Gives you 1 bomb (doesn't grow your snake or award points)
+   - **Maximum Bombs**: Limited to 5 bombs - additional bomb bricks collected are discarded
    - **Throwing**: Press B to throw a bomb
    - **Bomb Mechanics**:
      - Bombs are thrown **2-5 cells** away (random distance)
@@ -126,7 +128,7 @@ python client.py
      - **Body Hit**: If the explosion hits a snake's body, truncates from that point (50 points deducted per removed segment)
      - Multiple snakes can be hit by one explosion
      - Visual: Bombs appear as black spheres with red glow
-   - **Bomb Count**: Displayed in red text in your player panel (under bullets)
+   - **Bomb Count**: Displayed as bomb icons in your player panel (under bullets)
    - **Strategic Use**: Bombs are powerful but unpredictable - use carefully near groups of snakes!
 6. **Death**: You die if you:
    - Hit a wall

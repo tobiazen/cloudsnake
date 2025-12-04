@@ -1063,19 +1063,19 @@ class GameGUI:
                 score_text = self.small_font.render(f"Score: {score}", True, DARK_GRAY)
                 self.screen.blit(score_text, (panel_x + player_panel_padding + 5, y_offset + 18))
                 
-                # Show bullet count with icon
-                bullet_icon_x = panel_x + player_panel_padding + 5
-                bullet_icon_y = y_offset + 36
-                draw_bullet_icon(self.screen, bullet_icon_x, bullet_icon_y, 16)
-                bullets_text = self.small_font.render(f"× {bullets}", True, DARK_GRAY)
-                self.screen.blit(bullets_text, (bullet_icon_x + 20, y_offset + 36))
+                # Show bullet count as multiple icons (max 5)
+                bullet_start_x = panel_x + player_panel_padding + 5
+                bullet_y = y_offset + 36
+                bullets_to_show = min(bullets, 5)
+                for i in range(bullets_to_show):
+                    draw_bullet_icon(self.screen, bullet_start_x + (i * 18), bullet_y, 16)
                 
-                # Show bomb count with icon
-                bomb_icon_x = panel_x + player_panel_padding + 5
-                bomb_icon_y = y_offset + 54
-                draw_bomb_icon(self.screen, bomb_icon_x, bomb_icon_y, 16)
-                bombs_text = self.small_font.render(f"× {bombs}", True, DARK_GRAY)
-                self.screen.blit(bombs_text, (bomb_icon_x + 20, y_offset + 54))
+                # Show bomb count as multiple icons (max 5)
+                bomb_start_x = panel_x + player_panel_padding + 5
+                bomb_y = y_offset + 54
+                bombs_to_show = min(bombs, 5)
+                for i in range(bombs_to_show):
+                    draw_bomb_icon(self.screen, bomb_start_x + (i * 18), bomb_y, 16)
                 
                 y_offset += player_panel_height + 4  # 4px spacing between panels
                 

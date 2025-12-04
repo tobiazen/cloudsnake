@@ -675,6 +675,173 @@ class TestBombFeature(unittest.TestCase):
                 elif direction == 'RIGHT':
                     # Should not throw left (x should not decrease)
                     self.assertGreaterEqual(bomb_x, head_x, "Bomb should not be thrown LEFT when facing RIGHT")
+    
+    def test_bullets_limited_to_5(self):
+        """Test that players cannot have more than 5 bullets"""
+        # Set player to have 5 bullets
+        self.server.clients[self.player1_addr]['bullets'] = 5
+        
+        # Place a bullet brick at player's head position
+        player_head = self.server.clients[self.player1_addr]['snake'][0]
+        self.server.bullet_bricks.append([player_head[0], player_head[1]])
+        self.server.bullet_bricks_set.add(player_head)
+        
+        # Try to collect bullet brick
+        snake = self.server.clients[self.player1_addr]['snake']
+        result = self.server.check_brick_collection(self.player1_addr, snake)
+        
+        # Verify brick was collected but bullet count stays at 5
+        self.assertEqual(result, 'bullet')
+        self.assertEqual(self.server.clients[self.player1_addr]['bullets'], 5)
+        
+        # Verify bullet brick was removed (so new one spawns)
+        self.assertNotIn(player_head, self.server.bullet_bricks_set)
+    
+    def test_bombs_limited_to_5(self):
+        """Test that players cannot have more than 5 bombs"""
+        # Set player to have 5 bombs
+        self.server.clients[self.player1_addr]['bombs'] = 5
+        
+        # Place a bomb brick at player's head position
+        player_head = self.server.clients[self.player1_addr]['snake'][0]
+        self.server.bomb_bricks.append([player_head[0], player_head[1]])
+        self.server.bomb_bricks_set.add(player_head)
+        
+        # Try to collect bomb brick
+        snake = self.server.clients[self.player1_addr]['snake']
+        result = self.server.check_brick_collection(self.player1_addr, snake)
+        
+        # Verify brick was collected but bomb count stays at 5
+        self.assertEqual(result, 'bomb')
+        self.assertEqual(self.server.clients[self.player1_addr]['bombs'], 5)
+        
+        # Verify bomb brick was removed (so new one spawns)
+        self.assertNotIn(player_head, self.server.bomb_bricks_set)
+    
+    def test_bullets_can_collect_up_to_5(self):
+        """Test that players can collect bullets up to a maximum of 5"""
+        # Start with 0 bullets
+        self.server.clients[self.player1_addr]['bullets'] = 0
+        
+        # Collect 5 bullets one by one
+        for i in range(5):
+            # Place a bullet brick at player's head position
+            player_head = self.server.clients[self.player1_addr]['snake'][0]
+            self.server.bullet_bricks.append([player_head[0], player_head[1]])
+            self.server.bullet_bricks_set.add(player_head)
+            
+            # Collect bullet brick
+            snake = self.server.clients[self.player1_addr]['snake']
+            result = self.server.check_brick_collection(self.player1_addr, snake)
+            
+            # Verify bullet was collected
+            self.assertEqual(result, 'bullet')
+            self.assertEqual(self.server.clients[self.player1_addr]['bullets'], i + 1)
+        
+        # Try to collect a 6th bullet
+        player_head = self.server.clients[self.player1_addr]['snake'][0]
+        self.server.bullet_bricks.append([player_head[0], player_head[1]])
+        self.server.bullet_bricks_set.add(player_head)
+        
+        snake = self.server.clients[self.player1_addr]['snake']
+        result = self.server.check_brick_collection(self.player1_addr, snake)
+        
+        # Verify brick was collected but count stays at 5
+        self.assertEqual(result, 'bullet')
+        self.assertEqual(self.server.clients[self.player1_addr]['bullets'], 5)
+    
+    def test_bombs_can_collect_up_to_5(self):
+        """Test that players can collect bombs up to a maximum of 5"""
+        # Start with 0 bombs
+        self.server.clients[self.player1_addr]['bombs'] = 0
+        
+        # Collect 5 bombs one by one
+        for i in range(5):
+            # Place a bomb brick at player's head position
+            player_head = self.server.clients[self.player1_addr]['snake'][0]
+            self.server.bomb_bricks.append([player_head[0], player_head[1]])
+            self.server.bomb_bricks_set.add(player_head)
+            
+            # Collect bomb brick
+            snake = self.server.clients[self.player1_addr]['snake']
+            result = self.server.check_brick_collection(self.player1_addr, snake)
+            
+            # Verify bomb was collected
+            self.assertEqual(result, 'bomb')
+            self.assertEqual(self.server.clients[self.player1_addr]['bombs'], i + 1)
+        
+        # Try to collect a 6th bomb
+        player_head = self.server.clients[self.player1_addr]['snake'][0]
+        self.server.bomb_bricks.append([player_head[0], player_head[1]])
+        self.server.bomb_bricks_set.add(player_head)
+        
+        snake = self.server.clients[self.player1_addr]['snake']
+        result = self.server.check_brick_collection(self.player1_addr, snake)
+        
+        # Verify brick was collected but count stays at 5
+        self.assertEqual(result, 'bomb')
+        self.assertEqual(self.server.clients[self.player1_addr]['bombs'], 5)
+    
+    @patch('random.choice')
+    @patch('random.randint')
+    @patch('random.uniform')
+    def test_can_collect_bullet_after_shooting(self, mock_uniform: MagicMock, 
+                                               mock_randint: MagicMock, 
+                                               mock_choice: MagicMock) -> None:
+        """Test that player can collect bullets again after shooting when at max capacity"""
+        # Set player to have 5 bullets
+        self.server.clients[self.player1_addr]['bullets'] = 5
+        
+        # Shoot a bullet
+        self.server.handle_shoot(self.player1_addr)
+        
+        # Verify bullet count decreased to 4
+        self.assertEqual(self.server.clients[self.player1_addr]['bullets'], 4)
+        
+        # Now collect a bullet brick
+        player_head = self.server.clients[self.player1_addr]['snake'][0]
+        self.server.bullet_bricks.append([player_head[0], player_head[1]])
+        self.server.bullet_bricks_set.add(player_head)
+        
+        snake = self.server.clients[self.player1_addr]['snake']
+        result = self.server.check_brick_collection(self.player1_addr, snake)
+        
+        # Verify bullet was collected and count is back to 5
+        self.assertEqual(result, 'bullet')
+        self.assertEqual(self.server.clients[self.player1_addr]['bullets'], 5)
+    
+    @patch('random.choice')
+    @patch('random.randint')
+    @patch('random.uniform')
+    def test_can_collect_bomb_after_throwing(self, mock_uniform: MagicMock, 
+                                             mock_randint: MagicMock, 
+                                             mock_choice: MagicMock) -> None:
+        """Test that player can collect bombs again after throwing when at max capacity"""
+        # Mock throw mechanics
+        mock_choice.return_value = 'RIGHT'
+        mock_randint.return_value = 3
+        mock_uniform.return_value = 2.5
+        
+        # Set player to have 5 bombs
+        self.server.clients[self.player1_addr]['bombs'] = 5
+        
+        # Throw a bomb
+        self.server.handle_throw_bomb(self.player1_addr)
+        
+        # Verify bomb count decreased to 4
+        self.assertEqual(self.server.clients[self.player1_addr]['bombs'], 4)
+        
+        # Now collect a bomb brick
+        player_head = self.server.clients[self.player1_addr]['snake'][0]
+        self.server.bomb_bricks.append([player_head[0], player_head[1]])
+        self.server.bomb_bricks_set.add(player_head)
+        
+        snake = self.server.clients[self.player1_addr]['snake']
+        result = self.server.check_brick_collection(self.player1_addr, snake)
+        
+        # Verify bomb was collected and count is back to 5
+        self.assertEqual(result, 'bomb')
+        self.assertEqual(self.server.clients[self.player1_addr]['bombs'], 5)
 
 
 if __name__ == '__main__':
