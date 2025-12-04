@@ -216,3 +216,7 @@ install_snake_game.py
 *.spec
 dist/
 build/
+
+# Game runtime files
+player_stats.json
+settings.json
