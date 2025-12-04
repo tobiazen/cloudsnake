@@ -137,9 +137,11 @@ jobs:
           cd artifacts/linux
           chmod +x SnakeGame snake-game.sh
           zip SnakeGame-linux.zip SnakeGame snake-game.sh
+          mv SnakeGame-linux.zip ..
           cd ../macos
           chmod +x SnakeGame snake-game.sh
           zip SnakeGame-macos.zip SnakeGame snake-game.sh
+          mv SnakeGame-macos.zip ..
 
       - name: Create/Update Latest Release
         uses: softprops/action-gh-release@v1
@@ -159,8 +161,8 @@ jobs:
             No Python installation needed!
           files: |
             artifacts/windows/SnakeGame.exe
-            artifacts/linux/SnakeGame-linux.zip
-            artifacts/macos/SnakeGame-macos.zip
+            artifacts/SnakeGame-linux.zip
+            artifacts/SnakeGame-macos.zip
           prerelease: false
           draft: false
         env:
