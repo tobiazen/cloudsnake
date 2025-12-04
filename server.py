@@ -984,12 +984,19 @@ class GameServer:
                 continue
             
             # Check collision with other players' snakes using global occupied cells
-            collision = False
             if new_head in self.occupied_cells:
-                # If it's in occupied, ensure it's not own body (already checked) and belongs to another
-                collision = True
-            
-            if collision:
+                # Collision with another snake - player dies
+                player_name = client_data['player_name']
+                final_score = client_data.get('score', 0)
+                client_data['alive'] = False
+                client_data['bullets'] = 0
+                client_data['bombs'] = 0
+                self.update_player_stats(player_name, final_score, died=True)
+                # Remove snake from occupied cells
+                snake_set = client_data.get('snake_set', set())
+                self.occupied_cells.difference_update(snake_set)
+                snake_set.clear()
+                # print(f"💀 {client_data['player_name']} hit another snake!")
                 continue
             
             # Add new head
