@@ -10,6 +10,8 @@ from datetime import datetime
 PlayerData = Dict[str, Any]
 # Type alias for bullet data dictionary  
 BulletData = Dict[str, Any]
+# Type alias for bomb data dictionary
+BombData = Dict[str, Any]
 
 class GameServer:
     def __init__(self, host: str = '0.0.0.0', port: int = 50000) -> None:
@@ -26,7 +28,9 @@ class GameServer:
             'players': {},
             'bricks': [],  # List of brick positions
             'bullet_bricks': [],  # List of bullet brick positions
+            'bomb_bricks': [],  # List of bomb brick positions
             'bullets': [],  # List of active bullets
+            'bombs': [],  # List of active bombs
             'timestamp': 0,
             'game_time': 0
         }
@@ -42,6 +46,11 @@ class GameServer:
         self.bullet_bricks_set: Set[Tuple[int, int]] = set()
         # Active bullets: list of dicts with {pos: (x,y), direction: str, owner: client_address}
         self.bullets: List[BulletData] = []
+        # Bomb bricks (special bricks that give bombs)
+        self.bomb_bricks: List[List[int]] = []
+        self.bomb_bricks_set: Set[Tuple[int, int]] = set()
+        # Active bombs: list of dicts with {pos: (x,y), explode_time: float, owner: client_address}
+        self.bombs: List[BombData] = []
         
         # Color pool for players
         self.available_colors: List[Tuple[int, int, int]] = [
@@ -196,6 +205,8 @@ class GameServer:
             self.handle_ping(client_address)
         elif message_type == 'shoot':
             self.handle_shoot(client_address)
+        elif message_type == 'throw_bomb':
+            self.handle_throw_bomb(client_address)
         elif message_type == 'start_game':
             self.handle_start_game(client_address)
         elif message_type == 'leave_game':
@@ -304,6 +315,7 @@ class GameServer:
                 'alive': True,
                 'color': color,
                 'bullets': 0,  # Starting bullet count
+                'bombs': 0,  # Starting bomb count
                 'in_game': False  # Start in lobby, not in active game
             }
             
@@ -414,6 +426,7 @@ class GameServer:
                 self.clients[client_address]['score'] = new_score
                 self.clients[client_address]['alive'] = True
                 self.clients[client_address]['bullets'] = 0
+                self.clients[client_address]['bombs'] = 0
                 # Add new occupied cell
                 self.occupied_cells.add(start_pos)
                 # print(f"🔄 {self.clients[client_address]['player_name']} respawned (score: {previous_score} → {new_score})")
@@ -442,6 +455,7 @@ class GameServer:
             self.clients[client_address]['direction'] = safe_direction
             self.clients[client_address]['score'] = 0
             self.clients[client_address]['bullets'] = 0
+            self.clients[client_address]['bombs'] = 0
             self.occupied_cells.add(start_pos)
             # print(f"🎮 {self.clients[client_address]['player_name']} started game")
     
@@ -458,6 +472,7 @@ class GameServer:
             self.clients[client_address]['in_game'] = False
             self.clients[client_address]['alive'] = False
             self.clients[client_address]['bullets'] = 0
+            self.clients[client_address]['bombs'] = 0
             
             # Remove from occupied cells
             old_set = self.clients[client_address].get('snake_set', set())
@@ -479,13 +494,14 @@ class GameServer:
             return 1 + ((player_count - 1) // 2) + 1
     
     def spawn_brick(self) -> bool:
-        """Spawn a brick at a random empty location (5% chance of bullet brick)"""
+        """Spawn a brick at a random empty location (5% bullet brick, 2% bomb brick)"""
         import random
         
         # Use cached occupied cells and bricks_set
         occupied = set(self.occupied_cells)
         occupied.update(self.bricks_set)
         occupied.update(self.bullet_bricks_set)
+        occupied.update(self.bomb_bricks_set)
         
         # Find random empty position
         max_attempts = 100
@@ -495,8 +511,13 @@ class GameServer:
             pos = (x, y)
             
             if pos not in occupied:
+                # 2% chance of spawning a bomb brick
+                rand_val = random.random()
+                if rand_val < 0.02:
+                    self.bomb_bricks.append([x, y])
+                    self.bomb_bricks_set.add(pos)
                 # 5% chance of spawning a bullet brick
-                if random.random() < 0.05:
+                elif rand_val < 0.07:
                     self.bullet_bricks.append([x, y])
                     self.bullet_bricks_set.add(pos)
                 else:
@@ -511,28 +532,31 @@ class GameServer:
         """Update brick count based on player count"""
         required_bricks = self.calculate_brick_count()
         
-        # Count total bricks (regular + bullet)
-        total_bricks = len(self.bricks) + len(self.bullet_bricks)
+        # Count total bricks (regular + bullet + bomb)
+        total_bricks = len(self.bricks) + len(self.bullet_bricks) + len(self.bomb_bricks)
         
         # Add bricks if needed
         while total_bricks < required_bricks:
             self.spawn_brick()
-            total_bricks = len(self.bricks) + len(self.bullet_bricks)
+            total_bricks = len(self.bricks) + len(self.bullet_bricks) + len(self.bomb_bricks)
         
         # Remove excess bricks if needed (e.g., when players leave)
         while total_bricks > required_bricks:
-            # Remove regular bricks first, then bullet bricks
+            # Remove regular bricks first, then bullet bricks, then bomb bricks
             if self.bricks:
                 removed = self.bricks.pop()
                 self.bricks_set.discard((removed[0], removed[1]))
             elif self.bullet_bricks:
                 removed = self.bullet_bricks.pop()
                 self.bullet_bricks_set.discard((removed[0], removed[1]))
-            total_bricks = len(self.bricks) + len(self.bullet_bricks)
+            elif self.bomb_bricks:
+                removed = self.bomb_bricks.pop()
+                self.bomb_bricks_set.discard((removed[0], removed[1]))
+            total_bricks = len(self.bricks) + len(self.bullet_bricks) + len(self.bomb_bricks)
     
     def check_brick_collection(self, client_address: Tuple[str, int], snake: List[Tuple[int, int]]) -> Optional[str]:
-        """Check if snake head collected a brick or bullet brick.
-        Returns 'regular' for regular brick, 'bullet' for bullet brick, or None."""
+        """Check if snake head collected a brick, bullet brick, or bomb brick.
+        Returns 'regular', 'bullet', 'bomb', or None."""
         if not snake:
             return None
         
@@ -551,6 +575,20 @@ class GameServer:
             # Spawn new brick
             self.spawn_brick()
             return 'bullet'
+        
+        # Check for bomb brick collection
+        if head in self.bomb_bricks_set:
+            # Remove the bomb brick from both structures
+            self.bomb_bricks_set.discard(head)
+            for i, brick in enumerate(self.bomb_bricks):
+                if (brick[0], brick[1]) == head:
+                    self.bomb_bricks.pop(i)
+                    break
+            # Give player a bomb
+            self.clients[client_address]['bombs'] = self.clients[client_address].get('bombs', 0) + 1
+            # Spawn new brick
+            self.spawn_brick()
+            return 'bomb'
         
         # Check for regular brick collection
         if head in self.bricks_set:
@@ -599,6 +637,57 @@ class GameServer:
                 'shooter_name': client_data.get('player_name', 'Unknown')
             }
             self.bullets.append(bullet)
+    
+    def handle_throw_bomb(self, client_address: Tuple[str, int]) -> None:
+        """Handle throw bomb request from client"""
+        if client_address in self.clients:
+            client_data = self.clients[client_address]
+            
+            # Check if player has bombs and is alive
+            if not client_data.get('alive', True):
+                return
+            
+            bombs_count = client_data.get('bombs', 0)
+            if bombs_count <= 0:
+                return
+            
+            # Deduct bomb
+            self.clients[client_address]['bombs'] = bombs_count - 1
+            
+            # Get player position
+            snake = client_data.get('snake', [])
+            if not snake:
+                return
+            
+            import random
+            head = snake[0]
+            
+            # Randomly throw bomb to left or right, 2-5 cells away
+            direction = random.choice(['LEFT', 'RIGHT'])
+            distance = random.randint(2, 5)
+            
+            if direction == 'LEFT':
+                bomb_x = head[0] - distance
+            else:  # RIGHT
+                bomb_x = head[0] + distance
+            
+            bomb_y = head[1]
+            
+            # Clamp position to grid bounds
+            bomb_x = max(0, min(bomb_x, self.grid_width - 1))
+            bomb_y = max(0, min(bomb_y, self.grid_height - 1))
+            
+            # Random explosion time between 2 and 4 seconds
+            explode_time = time.time() + random.uniform(2.0, 4.0)
+            
+            # Create bomb
+            bomb: BombData = {
+                'pos': [bomb_x, bomb_y],  # [x, y] for JSON serialization
+                'explode_time': explode_time,
+                'owner': str(client_address),
+                'thrower_name': client_data.get('player_name', 'Unknown')
+            }
+            self.bombs.append(bomb)
     
     def update_bullets(self) -> None:
         """Move bullets and check for collisions"""
@@ -694,6 +783,91 @@ class GameServer:
         for i in reversed(sorted(set(bullets_to_remove))):
             if i < len(self.bullets):
                 self.bullets.pop(i)
+    
+    def update_bombs(self) -> None:
+        """Check bomb timers and handle explosions"""
+        current_time = time.time()
+        bombs_to_remove: List[int] = []
+        
+        for i, bomb in enumerate(self.bombs):
+            explode_time = bomb.get('explode_time', 0)
+            
+            # Check if bomb should explode
+            if current_time >= explode_time:
+                bomb_x, bomb_y = bomb['pos']
+                
+                # 3x3 explosion area centered on bomb
+                for dx in range(-1, 2):
+                    for dy in range(-1, 2):
+                        explosion_x = bomb_x + dx
+                        explosion_y = bomb_y + dy
+                        
+                        # Check bounds
+                        if (explosion_x < 0 or explosion_x >= self.grid_width or
+                            explosion_y < 0 or explosion_y >= self.grid_height):
+                            continue
+                        
+                        explosion_pos = (explosion_x, explosion_y)
+                        
+                        # Check collision with snakes
+                        for client_address, client_data in self.clients.items():
+                            if not client_data.get('alive', True):
+                                continue
+                            
+                            snake = client_data.get('snake', [])
+                            if not snake:
+                                continue
+                            
+                            # Check if explosion hit this snake
+                            if explosion_pos in client_data.get('snake_set', set()):
+                                # Find the hit position in the snake
+                                hit_index = None
+                                for idx, segment in enumerate(snake):
+                                    if segment == explosion_pos:
+                                        hit_index = idx
+                                        break
+                                
+                                if hit_index is not None:
+                                    # Check if it's a headshot (index 0)
+                                    if hit_index == 0:
+                                        # Kill the snake and clean up
+                                        victim_name = client_data['player_name']
+                                        victim_score = client_data.get('score', 0)
+                                        client_data['alive'] = False
+                                        client_data['bullets'] = 0
+                                        client_data['bombs'] = 0
+                                        
+                                        # Update statistics for killer and victim
+                                        thrower_name = bomb.get('thrower_name', 'Unknown')
+                                        if thrower_name != 'Unknown':
+                                            self.update_player_stats(thrower_name, 0, kills=1)
+                                        self.update_player_stats(victim_name, victim_score, died=True)
+                                        
+                                        # Remove snake from occupied cells
+                                        snake_set = client_data.get('snake_set', set())
+                                        self.occupied_cells.difference_update(snake_set)
+                                        snake_set.clear()
+                                    else:
+                                        # Truncate snake after hit position
+                                        removed_segments = snake[hit_index:]
+                                        snake[:] = snake[:hit_index]
+                                        
+                                        # Update snake_set
+                                        snake_set = client_data.get('snake_set', set())
+                                        for seg in removed_segments:
+                                            snake_set.discard(seg)
+                                            self.occupied_cells.discard(seg)
+                                        
+                                        # Deduct score (50 points per removed segment)
+                                        score_deduction = len(removed_segments) * 50
+                                        client_data['score'] = max(0, client_data.get('score', 0) - score_deduction)
+                
+                bombs_to_remove.append(i)
+        
+        # Remove exploded bombs
+        for i in reversed(sorted(set(bombs_to_remove))):
+            if i < len(self.bombs):
+                self.bombs.pop(i)
     
     def handle_ping(self, client_address: Tuple[str, int]) -> None:
         """Handle ping from client"""
@@ -812,6 +986,9 @@ class GameServer:
                 # Update bullets (move and check collisions)
                 self.update_bullets()
                 
+                # Update bombs (check timers and explosions)
+                self.update_bombs()
+                
                 # Update game logic (move snakes, check collisions)
                 self.update_game_logic()
                 
@@ -833,6 +1010,7 @@ class GameServer:
                         'alive': client_data.get('alive'),
                         'color': client_data.get('color'),
                         'bullets': client_data.get('bullets', 0),
+                        'bombs': client_data.get('bombs', 0),
                         'in_game': client_data.get('in_game', False)
                     }
                     players_snapshot[str(client_address)] = filtered
@@ -841,7 +1019,9 @@ class GameServer:
                 # Update bricks and bullets in game state
                 self.game_state['bricks'] = self.bricks.copy()
                 self.game_state['bullet_bricks'] = self.bullet_bricks.copy()
+                self.game_state['bomb_bricks'] = self.bomb_bricks.copy()
                 self.game_state['bullets'] = self.bullets.copy()
+                self.game_state['bombs'] = self.bombs.copy()
                 
                 # Add leaderboard to game state
                 self.game_state['leaderboard'] = self.get_top_players(10)
