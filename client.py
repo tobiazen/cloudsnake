@@ -1029,7 +1029,7 @@ class GameGUI:
                 bombs = player_info.get('bombs', 0)
                 
                 # Draw individual panel for each player (with padding from edges)
-                player_panel_height = 72
+                player_panel_height = 50
                 player_panel_padding = 5
                 player_panel = pygame.Rect(panel_x + player_panel_padding, y_offset - 2, 
                                           panel_width - (player_panel_padding * 2), player_panel_height)
@@ -1063,19 +1063,21 @@ class GameGUI:
                 score_text = self.small_font.render(f"Score: {score}", True, DARK_GRAY)
                 self.screen.blit(score_text, (panel_x + player_panel_padding + 5, y_offset + 18))
                 
-                # Show bullet count as multiple icons (max 5)
+                # Show bullets and bombs on same line with smaller, tighter icons
+                icons_y = y_offset + 34
+                icon_size = 12
+                
+                # Show bullet count as multiple icons (max 5) with tight spacing
                 bullet_start_x = panel_x + player_panel_padding + 5
-                bullet_y = y_offset + 36
                 bullets_to_show = min(bullets, 5)
                 for i in range(bullets_to_show):
-                    draw_bullet_icon(self.screen, bullet_start_x + (i * 18), bullet_y, 16)
+                    draw_bullet_icon(self.screen, bullet_start_x + (i * 11), icons_y, icon_size)
                 
-                # Show bomb count as multiple icons (max 5)
-                bomb_start_x = panel_x + player_panel_padding + 5
-                bomb_y = y_offset + 54
+                # Show bomb count as multiple icons (max 5) - offset to right of bullets
+                bomb_start_x = bullet_start_x + (5 * 11) + 5  # After max bullets + small gap
                 bombs_to_show = min(bombs, 5)
                 for i in range(bombs_to_show):
-                    draw_bomb_icon(self.screen, bomb_start_x + (i * 18), bomb_y, 16)
+                    draw_bomb_icon(self.screen, bomb_start_x + (i * 13), icons_y, icon_size)
                 
                 y_offset += player_panel_height + 4  # 4px spacing between panels
                 
