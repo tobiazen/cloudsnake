@@ -45,6 +45,17 @@ def get_unicode_font(size: int) -> pygame.font.Font:
     # Fallback to default font
     return pygame.font.Font(None, size)
 
+def get_resource_path(relative_path: str) -> str:
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        import sys
+        base_path = sys._MEIPASS  # type: ignore
+    except Exception:
+        base_path = os.path.abspath(".")
+    
+    return os.path.join(base_path, relative_path)
+
 # UI Colors
 BG_COLOR = (15, 15, 25)
 PANEL_BG = (25, 25, 40)
@@ -413,7 +424,8 @@ class GameGUI:
         
         # Load logo image
         try:
-            self.logo_image = pygame.image.load('assets/cloudesnake.png')
+            logo_path = get_resource_path('assets/cloudesnake.png')
+            self.logo_image = pygame.image.load(logo_path)
             # Scale logo if needed (keep aspect ratio)
             logo_width = 500
             logo_height = int(self.logo_image.get_height() * (logo_width / self.logo_image.get_width()))
