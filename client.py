@@ -11,7 +11,7 @@ pygame.init()
 
 # Constants
 SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 730
+SCREEN_HEIGHT = 750
 FPS = 60
 
 # Colors - Enhanced palette
@@ -1012,9 +1012,10 @@ class GameGUI:
                 if y_offset > panel_y + SCREEN_HEIGHT - 200:
                     break
         
-        # Controls info at bottom
-        controls_y = SCREEN_HEIGHT - 50
-        controls = self.small_font.render("Arrow Keys: Move | SPACE: Shoot | B: Throw Bomb | R: Respawn | ESC: Quit", True, BLACK)
+        # Controls info below game area
+        game_area_bottom = self.game_offset_y + self.game_area_height
+        controls_y = game_area_bottom + 5  # 5px below game area
+        controls = self.small_font.render("Arrow Keys: Move | SPACE: Shoot | B: Throw Bomb | R: Respawn | ESC: Quit", True, GRAY)
         self.screen.blit(controls, (20, controls_y))
         
         # Menu button and dropdown (rendered last to be on top)
