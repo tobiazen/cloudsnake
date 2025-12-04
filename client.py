@@ -385,6 +385,54 @@ class Button:
         txt_rect = txt_surface.get_rect(center=self.rect.center)
         screen.blit(txt_surface, txt_rect)
 
+def draw_bullet_icon(screen: Any, x: int, y: int, size: int = 16) -> None:
+    """Draw a bullet icon (simple blue/cyan projectile)"""
+    center_x = x + size // 2
+    center_y = y + size // 2
+    
+    # Draw elongated bullet shape (vertical ellipse/capsule)
+    # Main body - blue
+    bullet_width = size // 2
+    bullet_height = size - 2
+    
+    # Draw rounded capsule shape
+    top_y = y + 1
+    bottom_y = y + bullet_height - 1
+    
+    # Top rounded part
+    pygame.draw.circle(screen, (0, 150, 255), (center_x, top_y + bullet_width // 2), bullet_width // 2)
+    # Middle rectangle
+    pygame.draw.rect(screen, (0, 150, 255), (center_x - bullet_width // 2, top_y + bullet_width // 2, bullet_width, bullet_height - bullet_width))
+    # Bottom flat/pointed part
+    pygame.draw.polygon(screen, (0, 120, 200), [
+        (center_x - bullet_width // 2, bottom_y - 2),
+        (center_x + bullet_width // 2, bottom_y - 2),
+        (center_x, bottom_y + 1)
+    ])
+    
+    # Highlight shine
+    pygame.draw.circle(screen, (150, 220, 255), (center_x - 1, top_y + 3), 2)
+
+def draw_bomb_icon(screen: Any, x: int, y: int, size: int = 16) -> None:
+    """Draw a bomb icon (black sphere with red fuse)"""
+    center_x = x + size // 2
+    center_y = y + size // 2 + 2
+    
+    # Bomb body (black circle with gradient effect)
+    pygame.draw.circle(screen, (30, 30, 30), (center_x, center_y), size // 2 - 1)
+    pygame.draw.circle(screen, (60, 60, 60), (center_x, center_y), size // 2 - 1, 1)
+    
+    # Shine highlight on bomb
+    pygame.draw.circle(screen, (80, 80, 80), (center_x - 2, center_y - 2), size // 5)
+    
+    # Fuse (red sparkle line)
+    fuse_start_x = center_x - size // 4
+    fuse_start_y = y + 2
+    pygame.draw.line(screen, (150, 150, 150), (fuse_start_x, fuse_start_y), (fuse_start_x - 2, fuse_start_y - 3), 2)
+    # Red spark at fuse tip
+    pygame.draw.circle(screen, (255, 50, 50), (fuse_start_x - 2, fuse_start_y - 3), 2)
+    pygame.draw.circle(screen, (255, 150, 0), (fuse_start_x - 2, fuse_start_y - 3), 1)
+
 class GameGUI:
     """Main GUI for the game client"""
     def __init__(self):
@@ -1015,13 +1063,19 @@ class GameGUI:
                 score_text = self.small_font.render(f"Score: {score}", True, DARK_GRAY)
                 self.screen.blit(score_text, (panel_x + player_panel_padding + 5, y_offset + 18))
                 
-                # Show bullet count under score
-                bullets_text = self.small_font.render(f"Bullets: {bullets}", True, BLUE)
-                self.screen.blit(bullets_text, (panel_x + player_panel_padding + 5, y_offset + 36))
+                # Show bullet count with icon
+                bullet_icon_x = panel_x + player_panel_padding + 5
+                bullet_icon_y = y_offset + 36
+                draw_bullet_icon(self.screen, bullet_icon_x, bullet_icon_y, 16)
+                bullets_text = self.small_font.render(f"× {bullets}", True, DARK_GRAY)
+                self.screen.blit(bullets_text, (bullet_icon_x + 20, y_offset + 36))
                 
-                # Show bomb count under bullets in red
-                bombs_text = self.small_font.render(f"Bombs: {bombs}", True, RED)
-                self.screen.blit(bombs_text, (panel_x + player_panel_padding + 5, y_offset + 54))
+                # Show bomb count with icon
+                bomb_icon_x = panel_x + player_panel_padding + 5
+                bomb_icon_y = y_offset + 54
+                draw_bomb_icon(self.screen, bomb_icon_x, bomb_icon_y, 16)
+                bombs_text = self.small_font.render(f"× {bombs}", True, DARK_GRAY)
+                self.screen.blit(bombs_text, (bomb_icon_x + 20, y_offset + 54))
                 
                 y_offset += player_panel_height + 4  # 4px spacing between panels
                 
