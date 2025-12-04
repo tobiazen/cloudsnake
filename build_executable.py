@@ -48,11 +48,13 @@ def build_executable() -> bool:
     else:  # Linux
         cmd.append("--windowed")  # GUI mode
     
-    # Add data files (settings.json)
+    # Add data files (settings.json and assets folder)
     if system == "Windows":
         cmd.extend(["--add-data", "settings.json;."])
+        cmd.extend(["--add-data", "assets;assets"])
     else:
         cmd.extend(["--add-data", "settings.json:."])
+        cmd.extend(["--add-data", "assets:assets"])
     
     try:
         subprocess.check_call(cmd)
