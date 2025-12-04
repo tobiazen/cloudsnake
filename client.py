@@ -999,7 +999,7 @@ class GameGUI:
         # Side panel for game state
         panel_x = self.game_offset_x + self.game_area_width + 20
         panel_y = 110
-        panel_width = SCREEN_WIDTH - panel_x - 20
+        panel_width = SCREEN_WIDTH - panel_x - 10
         
         # Draw gray background panel for player list area
         panel_bg = pygame.Rect(panel_x, panel_y, panel_width, SCREEN_HEIGHT - panel_y - 40)
@@ -1029,7 +1029,7 @@ class GameGUI:
                 bombs = player_info.get('bombs', 0)
                 
                 # Draw individual panel for each player (with padding from edges)
-                player_panel_height = 50
+                player_panel_height = 58
                 player_panel_padding = 5
                 player_panel = pygame.Rect(panel_x + player_panel_padding, y_offset - 2, 
                                           panel_width - (player_panel_padding * 2), player_panel_height)
@@ -1064,7 +1064,7 @@ class GameGUI:
                 self.screen.blit(score_text, (panel_x + player_panel_padding + 5, y_offset + 18))
                 
                 # Show bullets and bombs on same line with smaller, tighter icons
-                icons_y = y_offset + 34
+                icons_y = y_offset + 38
                 icon_size = 12
                 
                 # Show bullet count as multiple icons (max 5) with tight spacing
@@ -1077,7 +1077,7 @@ class GameGUI:
                 bomb_start_x = bullet_start_x + (5 * 11) + 5  # After max bullets + small gap
                 bombs_to_show = min(bombs, 5)
                 for i in range(bombs_to_show):
-                    draw_bomb_icon(self.screen, bomb_start_x + (i * 13), icons_y, icon_size)
+                    draw_bomb_icon(self.screen, bomb_start_x + (i * 14), icons_y, icon_size)
                 
                 y_offset += player_panel_height + 4  # 4px spacing between panels
                 
