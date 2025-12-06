@@ -550,19 +550,20 @@ class GameServer:
             self.spawn_brick()
             total_bricks = len(self.bricks) + len(self.bullet_bricks) + len(self.bomb_bricks)
         
-        # Remove excess bricks if needed (e.g., when players leave)
-        while total_bricks > required_bricks:
-            # Remove regular bricks first, then bullet bricks, then bomb bricks
-            if self.bricks:
-                removed = self.bricks.pop()
-                self.bricks_set.discard((removed[0], removed[1]))
-            elif self.bullet_bricks:
-                removed = self.bullet_bricks.pop()
-                self.bullet_bricks_set.discard((removed[0], removed[1]))
-            elif self.bomb_bricks:
-                removed = self.bomb_bricks.pop()
-                self.bomb_bricks_set.discard((removed[0], removed[1]))
-            total_bricks = len(self.bricks) + len(self.bullet_bricks) + len(self.bomb_bricks)
+        # Remove excess bricks ONLY when all players are dead (required_bricks == 0)
+        if required_bricks == 0:
+            while total_bricks > 0:
+                # Remove regular bricks first, then bullet bricks, then bomb bricks
+                if self.bricks:
+                    removed = self.bricks.pop()
+                    self.bricks_set.discard((removed[0], removed[1]))
+                elif self.bullet_bricks:
+                    removed = self.bullet_bricks.pop()
+                    self.bullet_bricks_set.discard((removed[0], removed[1]))
+                elif self.bomb_bricks:
+                    removed = self.bomb_bricks.pop()
+                    self.bomb_bricks_set.discard((removed[0], removed[1]))
+                total_bricks = len(self.bricks) + len(self.bullet_bricks) + len(self.bomb_bricks)
     
     def check_brick_collection(self, client_address: Tuple[str, int], snake: List[Tuple[int, int]]) -> Optional[str]:
         """Check if snake head collected a brick, bullet brick, or bomb brick.
