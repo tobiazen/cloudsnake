@@ -55,24 +55,31 @@ class GameServer:
         # Active bombs: list of dicts with {pos: (x,y), explode_time: float, owner: client_address}
         self.bombs: List[BombData] = []
         
-        # Color pool for players
+        # Brick colors that should NOT be used for players:
+        # - ORANGE (255, 140, 0) - regular bricks
+        # - YELLOW (255, 185, 0) - regular brick border
+        # - CYAN (0, 188, 212) - bullet bricks
+        # - BLUE (0, 120, 215) - bullet brick border
+        # - RED (237, 41, 57) - bomb bricks
+        
+        # Color pool for players (excluding brick colors)
         self.available_colors: List[Tuple[int, int, int]] = [
             (0, 255, 0),      # Green
-            (255, 0, 0),      # Red
-            (0, 100, 255),    # Blue
-            (255, 255, 0),    # Yellow
             (255, 0, 255),    # Magenta
-            (0, 255, 255),    # Cyan
-            (255, 128, 0),    # Orange
             (128, 0, 255),    # Purple
             (255, 192, 203),  # Pink
             (0, 255, 128),    # Spring Green
             (128, 255, 0),    # Chartreuse
-            (255, 64, 64),    # Light Red
-            (64, 64, 255),    # Light Blue
-            (255, 255, 128),  # Light Yellow
-            (128, 255, 255),  # Light Cyan
+            (64, 255, 64),    # Light Green
             (255, 128, 255),  # Light Magenta
+            (160, 32, 240),   # Purple (darker)
+            (255, 20, 147),   # Deep Pink
+            (50, 205, 50),    # Lime Green
+            (138, 43, 226),   # Blue Violet
+            (0, 255, 200),    # Turquoise
+            (200, 255, 0),    # Yellow-Green
+            (255, 105, 180),  # Hot Pink
+            (147, 112, 219),  # Medium Purple
         ]
         self.used_colors: Set[Tuple[int, int, int]] = set()  # Track colors currently in use
         self.max_players = 16  # Maximum number of players allowed
