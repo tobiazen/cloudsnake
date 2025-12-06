@@ -504,7 +504,7 @@ class GameServer:
             return 1 + ((player_count - 1) // 2) + 1
     
     def spawn_brick(self) -> bool:
-        """Spawn a brick at a random empty location (15% bullet brick, 15% bomb brick)"""
+        """Spawn a brick at a random empty location (5% bullet brick, 2% bomb brick)"""
         import random
         
         # Use cached occupied cells and bricks_set
@@ -521,13 +521,13 @@ class GameServer:
             pos = (x, y)
             
             if pos not in occupied:
-                # 15% chance of spawning a bomb brick
+                # 2% chance of spawning a bomb brick
                 rand_val = random.random()
-                if rand_val < 0.15:
+                if rand_val < 0.02:
                     self.bomb_bricks.append([x, y])
                     self.bomb_bricks_set.add(pos)
-                # 15% chance of spawning a bullet brick
-                elif rand_val < 0.30:
+                # 5% chance of spawning a bullet brick
+                elif rand_val < 0.07:
                     self.bullet_bricks.append([x, y])
                     self.bullet_bricks_set.add(pos)
                 else:
