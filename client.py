@@ -16,6 +16,7 @@ from utils.helpers import (
 from utils.settings import load_settings, save_settings, add_player_name
 from network.game_client import GameClient
 from ui.widgets import InputBox, Button
+from game.game_state import GameStateManager, PlayerInfo
 
 # Initialize Pygame
 pygame.init()
@@ -30,6 +31,9 @@ class GameGUI:
         
         # Client instance
         self.client: Optional[GameClient] = None
+        
+        # Game state manager
+        self.game_state_manager = GameStateManager()
         
         # Settings management
         self.settings_file = 'settings.json'
@@ -100,6 +104,13 @@ class GameGUI:
             import traceback
             traceback.print_exc()
             self.logo_image = None
+    
+    def update_game_state(self) -> None:
+        """Update the game state manager with latest data from client."""
+        if self.client and self.client.game_state:
+            self.game_state_manager.update(self.client.game_state)
+        else:
+            self.game_state_manager.update(None)
     
     def draw_connection_screen(self) -> None:
         """Draw the connection screen"""
@@ -172,15 +183,11 @@ class GameGUI:
         close_button.draw(self.screen)
         self.stats_close_button = close_button  # Store for event handling
         
-        # Get leaderboard data from game state
-        leaderboard = []
-        all_time_high = 0
-        all_time_player = "None"
-        
-        if self.client and self.client.game_state:
-            leaderboard = self.client.game_state.get('leaderboard', [])
-            all_time_high = self.client.game_state.get('all_time_highscore', 0)
-            all_time_player = self.client.game_state.get('all_time_highscore_player', 'None')
+        # Get leaderboard data from game state manager
+        self.update_game_state()
+        leaderboard = self.game_state_manager.get_leaderboard()
+        all_time_high = self.game_state_manager.get_all_time_highscore()
+        all_time_player = self.game_state_manager.get_all_time_highscore_player()
         
         # Leaderboard section
         leaderboard_y = 100
@@ -296,14 +303,10 @@ class GameGUI:
             player_text = self.font.render(f"Player: {self.client.player_name}", True, TEXT_COLOR)
             self.screen.blit(player_text, (20, 15))
             
-            # Score - get from server game state
-            score = 0
-            alive = True
-            if self.client.game_state:
-                players = self.client.game_state.get('players', {})
-                my_data = players.get(self.client.player_id, {})
-                score = my_data.get('score', 0)
-                alive = my_data.get('alive', True)
+            # Score - get from game state manager
+            self.update_game_state()
+            score = self.game_state_manager.get_player_score(self.client.player_id)
+            alive = self.game_state_manager.is_player_alive(self.client.player_id)
             
             score_text = self.font.render(f"Score: {score}", True, YELLOW)
             self.screen.blit(score_text, (300, 15))
@@ -347,12 +350,9 @@ class GameGUI:
                            (self.game_offset_x + self.game_area_width, self.game_offset_y + y))
         
         # Draw all players' snakes
-        if self.client and self.client.game_state:
-            players = self.client.game_state.get('players', {})
-            
+        if self.client and self.game_state_manager.is_valid:
             # Check if current player is in game
-            my_data = players.get(self.client.player_id, {})
-            my_in_game = my_data.get('in_game', False)
+            my_in_game = self.game_state_manager.is_player_in_game(self.client.player_id)
             
             # Show lobby message if not in game
             if not my_in_game:
@@ -366,25 +366,19 @@ class GameGUI:
                                                        self.game_offset_y + self.game_area_height // 2 + 20))
                 self.screen.blit(info_text, info_rect)
             
-            for player_id, player_info in players.items():
-                snake = player_info.get('snake', [])
-                alive = player_info.get('alive', True)
-                in_game = player_info.get('in_game', False)
-                color = player_info.get('color', (255, 255, 255))
+            for player_id, player_data in self.game_state_manager.get_players().items():
+                player = PlayerInfo(player_id, player_data)
                 
                 # Don't draw snakes for players not in game
-                if not in_game or not snake or not alive:
+                if not player.in_game or not player.snake or not player.is_alive:
                     continue
                 
-                # Use color from server
-                head_color = color
-                body_color = tuple(int(c * 0.7) for c in color)  # Darker body
+                # Use colors from player info
+                head_color = player.color
+                body_color = player.body_color
                 
                 # Draw snake with rounded style and glow effect
-                for i, segment in enumerate(snake):
-                    if isinstance(segment, list):
-                        segment = tuple(segment)
-                    
+                for i, segment in enumerate(player.snake):
                     x, y = segment
                     rect = pygame.Rect(
                         self.game_offset_x + x * self.grid_size + 2,
@@ -405,14 +399,8 @@ class GameGUI:
                         pygame.draw.rect(self.screen, head_color, rect, 1)
         
         # Draw bricks with improved graphics
-        if self.client and self.client.game_state:
-            bricks = self.client.game_state.get('bricks', [])
-            
-            for brick in bricks:
-                if isinstance(brick, list):
-                    x, y = brick
-                else:
-                    x, y = brick
+        if self.client and self.game_state_manager.is_valid:
+            for x, y in self.game_state_manager.get_bricks():
                 
                 # Draw brick with gradient effect
                 brick_rect = pygame.Rect(
@@ -426,13 +414,7 @@ class GameGUI:
                 pygame.draw.rect(self.screen, YELLOW, brick_rect, 2)
             
             # Draw bullet bricks (special bricks that give bullets)
-            bullet_bricks = self.client.game_state.get('bullet_bricks', [])
-            
-            for brick in bullet_bricks:
-                if isinstance(brick, list):
-                    x, y = brick
-                else:
-                    x, y = brick
+            for x, y in self.game_state_manager.get_bullet_bricks():
                 
                 # Draw bullet brick with cyan/blue colors
                 brick_rect = pygame.Rect(
@@ -445,13 +427,7 @@ class GameGUI:
                 pygame.draw.rect(self.screen, BLUE, brick_rect, 2)
             
             # Draw bomb bricks (special bricks that give bombs)
-            bomb_bricks = self.client.game_state.get('bomb_bricks', [])
-            
-            for brick in bomb_bricks:
-                if isinstance(brick, list):
-                    x, y = brick
-                else:
-                    x, y = brick
+            for x, y in self.game_state_manager.get_bomb_bricks():
                 
                 # Draw bomb brick with red colors
                 brick_rect = pygame.Rect(
@@ -464,9 +440,7 @@ class GameGUI:
                 pygame.draw.rect(self.screen, DARK_RED, brick_rect, 2)
             
             # Draw bullets
-            bullets = self.client.game_state.get('bullets', [])
-            
-            for bullet in bullets:
+            for bullet in self.game_state_manager.get_bullets():
                 pos = bullet.get('pos', [0, 0])
                 if isinstance(pos, list) and len(pos) >= 2:
                     x, y = pos[0], pos[1]
@@ -482,9 +456,7 @@ class GameGUI:
                 pygame.draw.circle(self.screen, (255, 150, 150), bullet_center, self.grid_size // 4)
             
             # Draw bombs
-            bombs = self.client.game_state.get('bombs', [])
-            
-            for bomb in bombs:
+            for bomb in self.game_state_manager.get_bombs():
                 pos = bomb.get('pos', [0, 0])
                 if isinstance(pos, list) and len(pos) >= 2:
                     x, y = pos[0], pos[1]
@@ -504,10 +476,8 @@ class GameGUI:
                 pygame.draw.circle(self.screen, BLACK, bomb_center, self.grid_size // 3)
             
             # Draw explosion animations
-            explosions = self.client.game_state.get('explosions', [])
             current_time = time.time()
-            
-            for explosion in explosions:
+            for explosion in self.game_state_manager.get_explosions():
                 positions = explosion.get('positions', [])
                 start_time = explosion.get('start_time', 0)
                 duration = explosion.get('duration', 0.4)
@@ -568,11 +538,9 @@ class GameGUI:
         
         # Check if current player is dead and show respawn button
         show_respawn = False
-        if self.client and self.client.game_state:
-            players = self.client.game_state.get('players', {})
-            my_data = players.get(self.client.player_id, {})
+        if self.client and self.game_state_manager.is_valid:
             # Only show respawn if dead and didn't leave voluntarily
-            if not my_data.get('alive', True) and not self.left_voluntarily:
+            if not self.game_state_manager.is_player_alive(self.client.player_id) and not self.left_voluntarily:
                 show_respawn = True
         
         if show_respawn:
@@ -610,22 +578,12 @@ class GameGUI:
         self.screen.blit(panel_title, (panel_x + 10, panel_y + 10))
         
         # Display player list with individual panels
-        if self.client and self.client.game_state:
-            players = self.client.game_state.get('players', {})
+        if self.client and self.game_state_manager.is_valid:
             y_offset = panel_y + 40
             
-            # Sort by score
-            sorted_players = sorted(players.items(), 
-                                   key=lambda x: x[1].get('score', 0), 
-                                   reverse=True)
-            
-            for player_id, player_info in sorted_players[:15]:  # Limit to 15 players
-                name = player_info.get('player_name', 'Unknown')
-                score = player_info.get('score', 0)
-                alive = player_info.get('alive', True)
-                snake_color = player_info.get('color', (255, 255, 255))
-                bullets = player_info.get('bullets', 0)
-                bombs = player_info.get('bombs', 0)
+            # Get sorted players
+            for player_id, player_data in self.game_state_manager.get_sorted_players(limit=15):
+                player = PlayerInfo(player_id, player_data)
                 
                 # Draw individual panel for each player (with padding from edges)
                 player_panel_height = 58
@@ -636,30 +594,29 @@ class GameGUI:
                 # Highlight current player's panel
                 if player_id == self.client.player_id:
                     pygame.draw.rect(self.screen, (240, 248, 255), player_panel)  # Light blue background
-                    pygame.draw.rect(self.screen, snake_color, player_panel, 3)  # Thick colored border
+                    pygame.draw.rect(self.screen, player.color, player_panel, 3)  # Thick colored border
                 else:
                     pygame.draw.rect(self.screen, WHITE, player_panel)  # White background
                     pygame.draw.rect(self.screen, LIGHT_GRAY, player_panel, 2)  # Gray border
                 
-                # Truncate long names
-                if len(name) > 10:
-                    name = name[:10] + ".."
+                # Get truncated name
+                display_name = player.get_truncated_name(10)
                 
                 # Highlight current player with arrow
                 if player_id == self.client.player_id:
-                    name = f"► {name}"
+                    display_name = f"► {display_name}"
                 
                 # Use snake color for the name text
-                text_color = snake_color
+                text_color = player.color
                 
                 # Show dead status
-                status = "💀" if not alive else ""
+                status = "💀" if not player.is_alive else ""
                 
                 # Draw player info inside the panel
-                name_text = self.small_font.render(f"{name} {status}", True, text_color)
+                name_text = self.small_font.render(f"{display_name} {status}", True, text_color)
                 self.screen.blit(name_text, (panel_x + player_panel_padding + 5, y_offset))
                 
-                score_text = self.small_font.render(f"Score: {score}", True, DARK_GRAY)
+                score_text = self.small_font.render(f"Score: {player.score}", True, DARK_GRAY)
                 self.screen.blit(score_text, (panel_x + player_panel_padding + 5, y_offset + 18))
                 
                 # Show bullets and bombs on same line with smaller, tighter icons
@@ -668,13 +625,13 @@ class GameGUI:
                 
                 # Show bullet count as multiple icons (max 5) with tight spacing
                 bullet_start_x = panel_x + player_panel_padding + 5
-                bullets_to_show = min(bullets, 5)
+                bullets_to_show = min(player.bullets, 5)
                 for i in range(bullets_to_show):
                     draw_bullet_icon(self.screen, bullet_start_x + (i * 11), icons_y, icon_size)
                 
                 # Show bomb count as multiple icons (max 5) - offset to right of bullets
                 bomb_start_x = bullet_start_x + (5 * 11) + 5  # After max bullets + small gap
-                bombs_to_show = min(bombs, 5)
+                bombs_to_show = min(player.bombs, 5)
                 for i in range(bombs_to_show):
                     draw_bomb_icon(self.screen, bomb_start_x + (i * 14), icons_y, icon_size)
                 
@@ -815,11 +772,10 @@ class GameGUI:
         # Check if player is dead
         is_dead = False
         is_in_game = False
-        if self.client.game_state:
-            players = self.client.game_state.get('players', {})
-            my_data = players.get(self.client.player_id, {})
-            is_dead = not my_data.get('alive', True)
-            is_in_game = my_data.get('in_game', False)
+        if self.client:
+            self.update_game_state()
+            is_dead = not self.game_state_manager.is_player_alive(self.client.player_id)
+            is_in_game = self.game_state_manager.is_player_in_game(self.client.player_id)
         
         # Handle respawn button if dead and in game
         if is_dead and is_in_game:

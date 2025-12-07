@@ -13,6 +13,7 @@ UNIT_TEST_MODULES = [
     'utils.test_settings',
     'network.test_game_client',
     'ui.test_widgets',
+    'game.test_game_state',
 ]
 
 def run_unit_tests():
