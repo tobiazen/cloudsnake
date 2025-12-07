@@ -278,7 +278,7 @@ The project has been refactored into a modular architecture for better maintaina
 ```
 cloudsnake/
 ├── server.py                    # Game server
-├── client.py                    # Main game client (980 lines, down from 1444)
+├── client.py                    # Main game client (936 lines, down from 1444)
 ├── config/
 │   ├── constants.py            # All color and dimension constants
 │   └── test_constants.py       # Unit tests for constants
@@ -290,6 +290,9 @@ cloudsnake/
 ├── network/
 │   ├── game_client.py          # Network layer (pygame-independent)
 │   └── test_game_client.py     # Unit tests for network client
+├── game/
+│   ├── game_state.py           # Game state management (GameStateManager, PlayerInfo)
+│   └── test_game_state.py      # Unit tests for game state module
 ├── ui/
 │   ├── widgets.py              # Reusable UI components (InputBox, Button)
 │   └── test_widgets.py         # Unit tests for widgets
@@ -310,7 +313,7 @@ The project includes comprehensive unit tests and integration tests:
 python3 run_tests.py
 
 # Run only unit tests
-python3 -m unittest config.test_constants utils.test_helpers utils.test_settings network.test_game_client ui.test_widgets
+python3 -m unittest config.test_constants utils.test_helpers utils.test_settings network.test_game_client game.test_game_state ui.test_widgets
 
 # Run only integration tests
 python3 test_final.py
