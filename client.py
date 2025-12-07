@@ -8,7 +8,12 @@ from typing import Optional, Dict, Any, Tuple
 
 # Import configuration and utilities
 from config.constants import *
-from utils.helpers import get_unicode_font, get_resource_path, draw_bullet_icon, draw_bomb_icon
+from utils.helpers import (
+    get_unicode_font, get_resource_path, 
+    draw_bullet_icon, draw_bomb_icon,
+    draw_text_with_shadow, draw_gradient_rect
+)
+from utils.settings import load_settings, save_settings, add_player_name
 from network.game_client import GameClient
 from ui.widgets import InputBox, Button
 
@@ -28,7 +33,7 @@ class GameGUI:
         
         # Settings management
         self.settings_file = 'settings.json'
-        self.settings = self.load_settings()
+        self.settings = load_settings(self.settings_file)
         
         # GUI state
         self.state = 'connection'  # 'connection', 'connecting', 'game'
@@ -96,57 +101,6 @@ class GameGUI:
             traceback.print_exc()
             self.logo_image = None
     
-    def draw_text_with_shadow(self, text: str, font: Any, x: int, y: int, color: Tuple[int, int, int], shadow_offset: int = 2) -> None:
-        """Draw text with shadow for better readability"""
-        # Shadow
-        shadow_surf = font.render(text, True, TEXT_SHADOW)
-        self.screen.blit(shadow_surf, (x + shadow_offset, y + shadow_offset))
-        # Text
-        text_surf = font.render(text, True, color)
-        self.screen.blit(text_surf, (x, y))
-    
-    def draw_gradient_rect(self, x: int, y: int, width: int, height: int, color1: Tuple[int, int, int], color2: Tuple[int, int, int]) -> None:
-        """Draw a rectangle with vertical gradient"""
-        for i in range(height):
-            ratio = i / height
-            r = int(color1[0] * (1 - ratio) + color2[0] * ratio)
-            g = int(color1[1] * (1 - ratio) + color2[1] * ratio)
-            b = int(color1[2] * (1 - ratio) + color2[2] * ratio)
-            pygame.draw.line(self.screen, (r, g, b), (x, y + i), (x + width, y + i))
-    
-    def load_settings(self) -> Dict[str, Any]:
-        """Load settings from file"""
-        if os.path.exists(self.settings_file):
-            try:
-                with open(self.settings_file, 'r') as f:
-                    return json.load(f)
-            except:
-                pass
-        return {'player_names': [], 'last_player_name': '', 'server_ip': '129.151.219.36'}
-    
-    def save_settings(self) -> None:
-        """Save settings to file"""
-        try:
-            with open(self.settings_file, 'w') as f:
-                json.dump(self.settings, f, indent=4)
-        except Exception as e:
-            print(f"Error saving settings: {e}")
-    
-    def add_player_name(self, name: str) -> None:
-        """Add player name to history"""
-        if name and name.strip():
-            name = name.strip()
-            # Remove if already exists (to move to front)
-            if name in self.settings['player_names']:
-                self.settings['player_names'].remove(name)
-            # Add to front
-            self.settings['player_names'].insert(0, name)
-            # Keep only last 10 names
-            self.settings['player_names'] = self.settings['player_names'][:10]
-            # Update last used name
-            self.settings['last_player_name'] = name
-            self.save_settings()
-        
     def draw_connection_screen(self) -> None:
         """Draw the connection screen"""
         # Background gradient
@@ -159,7 +113,7 @@ class GameGUI:
             self.screen.blit(self.logo_image, (logo_x, logo_y))
         else:
             # Fallback to text title with shadow
-            self.draw_text_with_shadow("CloudSnake", self.title_font, SCREEN_WIDTH // 2 - 150, 80, CYAN, 3)
+            draw_text_with_shadow(self.screen, "CloudSnake", self.title_font, SCREEN_WIDTH // 2 - 150, 80, CYAN, 3)
         
         # Labels
         ip_label = self.font.render("Server IP:", True, TEXT_COLOR)
@@ -211,7 +165,7 @@ class GameGUI:
         self.screen.fill(BG_COLOR)
         
         # Title with shadow
-        self.draw_text_with_shadow("Statistics & Leaderboard", self.title_font, 120, 30, CYAN, 3)
+        draw_text_with_shadow(self.screen, "Statistics & Leaderboard", self.title_font, 120, 30, CYAN, 3)
         
         # Close button (X in top right)
         close_button = Button(SCREEN_WIDTH - 120, 30, 100, 40, '✕ Close', RED)
@@ -311,7 +265,7 @@ class GameGUI:
         self.screen.fill(BG_COLOR)
         
         # Connecting message with shadow
-        self.draw_text_with_shadow("Connecting", self.title_font, SCREEN_WIDTH // 2 - 130, SCREEN_HEIGHT // 2 - 30, CYAN, 3)
+        draw_text_with_shadow(self.screen, "Connecting", self.title_font, SCREEN_WIDTH // 2 - 130, SCREEN_HEIGHT // 2 - 30, CYAN, 3)
         
         # Animated dots
         dots = "." * ((pygame.time.get_ticks() // 500) % 4)
@@ -335,7 +289,7 @@ class GameGUI:
         self.screen.fill(BG_COLOR)
         
         # Title bar with gradient
-        self.draw_gradient_rect(0, 0, SCREEN_WIDTH, 60, PANEL_BG, BG_COLOR)
+        draw_gradient_rect(self.screen, 0, 0, SCREEN_WIDTH, 60, PANEL_BG, BG_COLOR)
         
         if self.client:
             # Player info with modern styling
@@ -923,9 +877,9 @@ class GameGUI:
             return
         
         # Save the player name and server IP
-        self.add_player_name(player_name)
+        add_player_name(self.settings, player_name, self.settings_file)
         self.settings['server_ip'] = server_ip
-        self.save_settings()
+        save_settings(self.settings, self.settings_file)
         
         self.state = 'connecting'
         self.connection_error = ""

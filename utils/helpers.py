@@ -1,7 +1,8 @@
 """Helper utilities for CloudSnake client - fonts, resources, and drawing functions"""
 import os
 import pygame
-from typing import Any
+from typing import Any, Tuple
+from config.constants import TEXT_SHADOW
 
 def get_unicode_font(size: int) -> pygame.font.Font:
     """Return a pygame Font with good Unicode coverage (fallbacks to default)."""
@@ -92,3 +93,23 @@ def draw_bomb_icon(screen: Any, x: int, y: int, size: int = 16) -> None:
     # Red spark at fuse tip
     pygame.draw.circle(screen, (255, 50, 50), (fuse_start_x - 2, fuse_start_y - 3), 2)
     pygame.draw.circle(screen, (255, 150, 0), (fuse_start_x - 2, fuse_start_y - 3), 1)
+
+
+def draw_text_with_shadow(screen: Any, text: str, font: Any, x: int, y: int, color: Tuple[int, int, int], shadow_offset: int = 2) -> None:
+    """Draw text with shadow for better readability"""
+    # Shadow
+    shadow_surf = font.render(text, True, TEXT_SHADOW)
+    screen.blit(shadow_surf, (x + shadow_offset, y + shadow_offset))
+    # Text
+    text_surf = font.render(text, True, color)
+    screen.blit(text_surf, (x, y))
+
+
+def draw_gradient_rect(screen: Any, x: int, y: int, width: int, height: int, color1: Tuple[int, int, int], color2: Tuple[int, int, int]) -> None:
+    """Draw a rectangle with vertical gradient"""
+    for i in range(height):
+        ratio = i / height
+        r = int(color1[0] * (1 - ratio) + color2[0] * ratio)
+        g = int(color1[1] * (1 - ratio) + color2[1] * ratio)
+        b = int(color1[2] * (1 - ratio) + color2[2] * ratio)
+        pygame.draw.line(screen, (r, g, b), (x, y + i), (x + width, y + i))
