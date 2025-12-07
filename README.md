@@ -271,16 +271,70 @@ For internet play:
 
 ## Development
 
-### File Structure
+### Project Structure
+
+The project has been refactored into a modular architecture for better maintainability:
 
 ```
 cloudsnake/
-├── server.py          # Game server
-├── client.py          # Game client with GUI
-├── settings.json      # Client settings (auto-generated)
-├── README.md          # This file
-└── LICENSE            # License file
+├── server.py                    # Game server
+├── client.py                    # Main game client (980 lines, down from 1444)
+├── config/
+│   ├── constants.py            # All color and dimension constants
+│   └── test_constants.py       # Unit tests for constants
+├── utils/
+│   ├── helpers.py              # Drawing and resource helper functions
+│   ├── settings.py             # Settings management functions
+│   ├── test_helpers.py         # Unit tests for helpers
+│   └── test_settings.py        # Unit tests for settings
+├── network/
+│   ├── game_client.py          # Network layer (pygame-independent)
+│   └── test_game_client.py     # Unit tests for network client
+├── ui/
+│   ├── widgets.py              # Reusable UI components (InputBox, Button)
+│   └── test_widgets.py         # Unit tests for widgets
+├── test_final.py               # Integration tests
+├── run_tests.py                # Test runner script
+├── REFACTORING.md              # Detailed refactoring documentation
+├── settings.json               # Client settings (auto-generated)
+├── README.md                   # This file
+└── LICENSE                     # License file
 ```
+
+### Running Tests
+
+The project includes comprehensive unit tests and integration tests:
+
+```bash
+# Run all tests (unit + integration)
+python3 run_tests.py
+
+# Run only unit tests
+python3 -m unittest config.test_constants utils.test_helpers utils.test_settings network.test_game_client ui.test_widgets
+
+# Run only integration tests
+python3 test_final.py
+
+# Run specific module tests
+python3 -m unittest config.test_constants
+python3 -m unittest utils.test_settings
+```
+
+**Test Coverage:**
+- 27 unit tests across all modules
+- 8 integration tests for overall functionality
+- All tests passing ✓
+
+### Code Quality
+
+The codebase follows best practices:
+- **Separation of Concerns**: Config, network, UI, and utilities are isolated
+- **No pygame dependency in network layer**: Network code is independently testable
+- **Reusable Components**: UI widgets and utility functions can be used across the project
+- **Comprehensive Testing**: Unit tests for each module + integration tests
+- **32% Code Reduction**: Main client file reduced from 1444 to 980 lines
+
+See `REFACTORING.md` for detailed documentation of the refactoring process and architecture decisions.
 
 ### Protocol
 

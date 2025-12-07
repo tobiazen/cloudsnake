@@ -130,35 +130,39 @@ def test_separation_of_concerns():
     return True
 
 
-def test_all_phase_tests():
-    """Run all phase tests"""
+def test_all_unit_tests():
+    """Run all module unit tests"""
     import subprocess
     
-    test_files = [
-        'test_phase1.py',
-        'test_phase2.py',
-        'test_phase3.py',
-        'test_phase4.py'
+    test_modules = [
+        'config.test_constants',
+        'utils.test_helpers',
+        'utils.test_settings',
+        'network.test_game_client',
+        'ui.test_widgets'
     ]
     
-    all_passed = True
-    for test_file in test_files:
-        result = subprocess.run(
-            ['python3', test_file],
-            cwd=os.path.dirname(__file__),
-            capture_output=True,
-            text=True
-        )
-        if result.returncode != 0:
-            print(f"✗ {test_file} failed")
-            all_passed = False
+    result = subprocess.run(
+        ['python3', '-m', 'unittest'] + test_modules,
+        cwd=os.path.dirname(__file__),
+        capture_output=True,
+        text=True
+    )
+    
+    if result.returncode == 0:
+        # Count tests from output
+        import re
+        match = re.search(r'Ran (\d+) test', result.stderr)
+        if match:
+            num_tests = match.group(1)
+            print(f"✓ All {num_tests} unit tests passed")
         else:
-            print(f"✓ {test_file} passed")
-    
-    if all_passed:
-        print("✓ All phase tests passed")
-    
-    return all_passed
+            print("✓ All unit tests passed")
+        return True
+    else:
+        print(f"✗ Unit tests failed")
+        print(result.stderr)
+        return False
 
 
 def main():
@@ -175,7 +179,7 @@ def main():
         ("Code Organization", test_code_organization),
         ("File Size Reduction", test_file_size_reduction),
         ("Separation of Concerns", test_separation_of_concerns),
-        ("All Phase Tests", test_all_phase_tests),
+        ("All Unit Tests", test_all_unit_tests),
     ]
     
     results = []
@@ -212,7 +216,7 @@ def main():
         print("- Original client.py: 1444 lines")
         print("- Refactored client.py: ~980 lines (32% reduction)")
         print("- New modules created: 9 files")
-        print("- Total tests passing: 20/20")
+        print("- Total tests passing: 35+ (27 unit tests + 8 integration tests)")
         print("\nNew Structure:")
         print("  config/constants.py - All constants")
         print("  utils/helpers.py - Drawing and resource helpers")
