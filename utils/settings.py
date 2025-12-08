@@ -12,7 +12,12 @@ def load_settings(settings_file: str = 'settings.json') -> Dict[str, Any]:
                 return json.load(f)
         except:
             pass
-    return {'player_names': [], 'last_player_name': '', 'server_ip': '129.151.219.36'}
+    return {
+        'player_names': [], 
+        'last_player_name': '', 
+        'server_addresses': ['129.151.219.36'],
+        'last_server_address': '129.151.219.36'
+    }
 
 
 def save_settings(settings: Dict[str, Any], settings_file: str = 'settings.json') -> None:
@@ -37,4 +42,23 @@ def add_player_name(settings: Dict[str, Any], name: str, settings_file: str = 's
         settings['player_names'] = settings['player_names'][:10]
         # Update last used name
         settings['last_player_name'] = name
+        save_settings(settings, settings_file)
+
+
+def add_server_address(settings: Dict[str, Any], address: str, settings_file: str = 'settings.json') -> None:
+    """Add server address to history"""
+    if address and address.strip():
+        address = address.strip()
+        # Initialize server_addresses if not present
+        if 'server_addresses' not in settings:
+            settings['server_addresses'] = []
+        # Remove if already exists (to move to front)
+        if address in settings['server_addresses']:
+            settings['server_addresses'].remove(address)
+        # Add to front
+        settings['server_addresses'].insert(0, address)
+        # Keep only last 10 addresses
+        settings['server_addresses'] = settings['server_addresses'][:10]
+        # Update last used address
+        settings['last_server_address'] = address
         save_settings(settings, settings_file)

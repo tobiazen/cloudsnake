@@ -13,7 +13,7 @@ from utils.helpers import (
     draw_bullet_icon, draw_bomb_icon,
     draw_text_with_shadow, draw_gradient_rect
 )
-from utils.settings import load_settings, save_settings, add_player_name
+from utils.settings import load_settings, save_settings, add_player_name, add_server_address
 from network.game_client import GameClient
 from ui.widgets import InputBox, Button
 from game.game_state import GameStateManager, PlayerInfo
@@ -47,11 +47,16 @@ class GameGUI:
         self.dropdown_open = False
         self.selected_name_index = 0
         
+        # Server dropdown state
+        self.server_dropdown_open = False
+        self.selected_server_index = 0
+        
         # Connection screen widgets
-        server_ip = self.settings.get('server_ip', '129.151.219.36')
+        last_server = self.settings.get('last_server_address', self.settings.get('server_ip', '129.151.219.36'))
         last_name = self.settings.get('last_player_name', '')
         
-        self.ip_input = InputBox(300, 280, 400, 40, server_ip)
+        self.ip_input = InputBox(300, 280, 400, 40, last_server)
+        self.server_dropdown_button = Button(705, 280, 40, 40, '▼', DARK_GRAY)
         self.name_input = InputBox(300, 350, 400, 40, last_name)
         self.dropdown_button = Button(705, 350, 40, 40, '▼', DARK_GRAY)
         self.connect_button = Button(400, 430, 200, 50, 'Connect', GREEN)
@@ -523,13 +528,34 @@ class GameGUI:
         name_label = self.font.render("Player Name:", True, TEXT_COLOR)
         self.screen.blit(name_label, (300, 320))
         
-        # Input boxes and button
+        # Input boxes and buttons
         self.ip_input.draw(self.screen)
+        self.server_dropdown_button.draw(self.screen)
         self.name_input.draw(self.screen)
         self.dropdown_button.draw(self.screen)
         self.connect_button.draw(self.screen)
         
-        # Draw dropdown menu if open
+        # Draw server dropdown menu if open
+        if self.server_dropdown_open and self.settings.get('server_addresses', []):
+            dropdown_y = 325
+            for i, address in enumerate(self.settings['server_addresses'][:10]):
+                item_rect = pygame.Rect(300, dropdown_y + i * 35, 400, 35)
+                # Highlight hovered item
+                mouse_pos = pygame.mouse.get_pos()
+                if item_rect.collidepoint(mouse_pos):
+                    pygame.draw.rect(self.screen, HIGHLIGHT_COLOR, item_rect)
+                    color = WHITE
+                else:
+                    pygame.draw.rect(self.screen, PANEL_BG, item_rect)
+                    color = TEXT_COLOR
+                pygame.draw.rect(self.screen, BORDER_COLOR, item_rect, 2)
+                
+                # Truncate long addresses
+                display_address = address if len(address) <= 30 else address[:27] + "..."
+                address_text = self.small_font.render(display_address, True, color)
+                self.screen.blit(address_text, (item_rect.x + 5, item_rect.y + 8))
+        
+        # Draw name dropdown menu if open
         if self.dropdown_open and self.settings['player_names']:
             dropdown_y = 395
             for i, name in enumerate(self.settings['player_names'][:10]):
@@ -704,15 +730,42 @@ class GameGUI:
     
     def handle_connection_events(self, event: Any) -> None:
         """Handle events on connection screen"""
-        # Handle dropdown button
+        # Handle server dropdown button
+        if self.server_dropdown_button.handle_event(event):
+            if self.settings.get('server_addresses', []):
+                self.server_dropdown_open = not self.server_dropdown_open
+                if self.server_dropdown_open:
+                    self.dropdown_open = False  # Close name dropdown
+        
+        # Handle server dropdown selection
+        if event.type == pygame.MOUSEBUTTONDOWN and self.server_dropdown_open:
+            mouse_pos = event.pos
+            dropdown_y = 325
+            for i, address in enumerate(self.settings.get('server_addresses', [])[:10]):
+                item_rect = pygame.Rect(300, dropdown_y + i * 35, 400, 35)
+                if item_rect.collidepoint(mouse_pos):
+                    self.ip_input.text = address
+                    self.server_dropdown_open = False
+                    return
+        
+        # Close server dropdown if clicking outside
+        if event.type == pygame.MOUSEBUTTONDOWN and self.server_dropdown_open:
+            mouse_pos = event.pos
+            dropdown_area = pygame.Rect(300, 250, 445, 400)
+            if not dropdown_area.collidepoint(mouse_pos):
+                self.server_dropdown_open = False
+        
+        # Handle name dropdown button
         if self.dropdown_button.handle_event(event):
             if self.settings['player_names']:
                 self.dropdown_open = not self.dropdown_open
+                if self.dropdown_open:
+                    self.server_dropdown_open = False  # Close server dropdown
         
-        # Handle dropdown selection
+        # Handle name dropdown selection
         if event.type == pygame.MOUSEBUTTONDOWN and self.dropdown_open:
             mouse_pos = event.pos
-            dropdown_y = 365
+            dropdown_y = 395
             for i, name in enumerate(self.settings['player_names'][:10]):
                 item_rect = pygame.Rect(300, dropdown_y + i * 35, 400, 35)
                 if item_rect.collidepoint(mouse_pos):
@@ -720,10 +773,10 @@ class GameGUI:
                     self.dropdown_open = False
                     return
         
-        # Close dropdown if clicking outside
+        # Close name dropdown if clicking outside
         if event.type == pygame.MOUSEBUTTONDOWN and self.dropdown_open:
             mouse_pos = event.pos
-            dropdown_area = pygame.Rect(300, 320, 445, 400)
+            dropdown_area = pygame.Rect(300, 350, 445, 400)
             if not dropdown_area.collidepoint(mouse_pos):
                 self.dropdown_open = False
         
@@ -851,14 +904,14 @@ class GameGUI:
             self.connection_error = "Please enter a player name"
             return
         
-        # Save the player name and server IP
+        # Save the player name and server address to history
         add_player_name(self.settings, player_name, self.settings_file)
-        self.settings['server_ip'] = server_ip
-        save_settings(self.settings, self.settings_file)
+        add_server_address(self.settings, server_ip, self.settings_file)
         
         self.state = 'connecting'
         self.connection_error = ""
         self.dropdown_open = False
+        self.server_dropdown_open = False
         
         # Start connection in background thread
         thread = threading.Thread(target=self.connect_to_server, 
