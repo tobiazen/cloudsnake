@@ -52,7 +52,7 @@ class GameGUI:
         self.selected_server_index = 0
         
         # Connection screen widgets
-        last_server = self.settings.get('last_server_address', self.settings.get('server_ip', '129.151.219.36'))
+        last_server = self.settings.get('last_server_address', self.settings.get('server_ip', ''))
         last_name = self.settings.get('last_player_name', '')
         
         self.ip_input = InputBox(300, 280, 400, 40, last_server)
