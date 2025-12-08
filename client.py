@@ -123,7 +123,10 @@ class GameGUI:
             
             # Score - get from game state manager
             self.update_game_state()
-            score = self.game_state_manager.get_player_score(self.client.player_id)
+            if self.client.player_id:
+                score = self.game_state_manager.get_player_score(self.client.player_id)
+            else:
+                score = 0
             score_text = self.font.render(f"Score: {score}", True, YELLOW)
             self.screen.blit(score_text, (300, 15))
             
@@ -172,7 +175,7 @@ class GameGUI:
             return
         
         # Check if current player is in game
-        my_in_game = self.game_state_manager.is_player_in_game(self.client.player_id)
+        my_in_game = self.game_state_manager.is_player_in_game(self.client.player_id) if self.client.player_id else False
         
         # Show lobby message if not in game
         if not my_in_game:
@@ -355,7 +358,7 @@ class GameGUI:
         """Draw death overlay with respawn button"""
         # Check if current player is dead and show respawn button
         show_respawn = False
-        if self.client and self.game_state_manager.is_valid:
+        if self.client and self.game_state_manager.is_valid and self.client.player_id:
             # Only show respawn if dead and didn't leave voluntarily
             if not self.game_state_manager.is_player_alive(self.client.player_id) and not self.left_voluntarily:
                 show_respawn = True
@@ -787,7 +790,7 @@ class GameGUI:
         # Check if player is dead
         is_dead = False
         is_in_game = False
-        if self.client:
+        if self.client and self.client.player_id:
             self.update_game_state()
             is_dead = not self.game_state_manager.is_player_alive(self.client.player_id)
             is_in_game = self.game_state_manager.is_player_in_game(self.client.player_id)

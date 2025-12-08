@@ -4,19 +4,82 @@
       "highscore": 500,
       "games_played": 0,
       "total_kills": 0,
-      "total_deaths": 15,
-      "last_seen": "2025-12-03T22:28:52.759119"
+      "total_deaths": 18,
+      "last_seen": "2025-12-04T20:37:09.614441"
     },
     "TestPlayer2": {
       "highscore": 300,
       "games_played": 0,
-      "total_kills": 0,
+      "total_kills": 3,
       "total_deaths": 10,
-      "last_seen": "2025-12-03T22:28:52.759194"
+      "last_seen": "2025-12-04T20:37:09.614249"
+    },
+    "Tobias": {
+      "highscore": 884,
+      "games_played": 15,
+      "total_kills": 1,
+      "total_deaths": 16,
+      "last_seen": "2025-12-08T19:14:17.670884"
+    },
+    "BombThrower": {
+      "highscore": 500,
+      "games_played": 0,
+      "total_kills": 37,
+      "total_deaths": 6,
+      "last_seen": "2025-12-04T21:54:03.414240"
+    },
+    "VictimPlayer": {
+      "highscore": 300,
+      "games_played": 0,
+      "total_kills": 0,
+      "total_deaths": 31,
+      "last_seen": "2025-12-04T21:54:03.414319"
+    },
+    "SafePlayer": {
+      "highscore": 200,
+      "games_played": 0,
+      "total_kills": 0,
+      "total_deaths": 6,
+      "last_seen": "2025-12-04T21:54:03.414134"
+    },
+    "Tobabr": {
+      "highscore": 920,
+      "games_played": 21,
+      "total_kills": 1,
+      "total_deaths": 27,
+      "last_seen": "2025-12-08T13:15:18.523019"
+    },
+    "TestPlayer": {
+      "highscore": 0,
+      "games_played": 7,
+      "total_kills": 0,
+      "total_deaths": 0,
+      "last_seen": "2025-12-08T17:49:12.523539"
+    },
+    "Player1": {
+      "highscore": 6,
+      "games_played": 4,
+      "total_kills": 0,
+      "total_deaths": 1,
+      "last_seen": "2025-12-08T19:34:38.704740"
+    },
+    "Player2": {
+      "highscore": 0,
+      "games_played": 4,
+      "total_kills": 0,
+      "total_deaths": 0,
+      "last_seen": "2025-12-08T19:26:04.915510"
+    },
+    "Player3": {
+      "highscore": 0,
+      "games_played": 2,
+      "total_kills": 0,
+      "total_deaths": 0,
+      "last_seen": "2025-12-08T19:34:00.364834"
     }
   },
-  "all_time_highscore": 500,
-  "all_time_highscore_player": "TestPlayer1",
-  "total_games": 0,
-  "last_updated": "2025-12-03T22:28:52.759195"
+  "all_time_highscore": 920,
+  "all_time_highscore_player": "Tobabr",
+  "total_games": 53,
+  "last_updated": "2025-12-08T19:34:38.704760"
 }
