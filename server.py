@@ -29,8 +29,8 @@ class GameServer:
         self.game_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.game_socket.bind((self.host, self.game_port))
         
-        # Map player IPs to their game socket addresses: {ip: game_address}
-        self.game_addresses: Dict[str, Tuple[str, int]] = {}
+        # Map control addresses to their game socket addresses: {control_address: game_address}
+        self.game_addresses: Dict[Tuple[str, int], Tuple[str, int]] = {}
         
         # Store connected clients: {client_address: {player_data}}
         self.clients: Dict[Tuple[str, int], PlayerData] = {}
@@ -230,24 +230,47 @@ class GameServer:
         """Listen for game messages on port 50001 (game controls, actions)"""
         while self.running:
             try:
-                data, client_address = self.game_socket.recvfrom(1024)
+                data, game_address = self.game_socket.recvfrom(1024)
                 message = json.loads(data.decode('utf-8'))
                 
-                # Register this address as the game socket address for this IP
-                client_ip = client_address[0]
-                self.game_addresses[client_ip] = client_address
+                # Find the control address for this game message
+                # First, try to match by player_id in message (most reliable)
+                player_id = message.get('player_id')
+                control_address = None
                 
-                # Handle game message types
-                message_type: str = message.get('type', '')
-                if message_type in ['join_game', 'update', 'shoot', 'throw_bomb', 'start_game', 'leave_game']:
-                    # Find the control address for this IP
-                    control_address = None
-                    for addr in self.clients.keys():
-                        if addr[0] == client_ip:
-                            control_address = addr
+                if player_id:
+                    # player_id is the control address tuple as string
+                    import ast
+                    try:
+                        control_address = ast.literal_eval(player_id) if isinstance(player_id, str) else player_id
+                        if control_address not in self.clients:
+                            control_address = None
+                    except:
+                        control_address = None
+                
+                # Fallback: match by IP and port proximity (least reliable, but handles old clients)
+                if not control_address:
+                    client_ip = game_address[0]
+                    # Check if there's already a mapping for this game address
+                    for ctrl_addr, game_addr in self.game_addresses.items():
+                        if game_addr == game_address:
+                            control_address = ctrl_addr
                             break
                     
-                    if control_address:
+                    # If still not found, check unmapped clients from same IP
+                    if not control_address:
+                        for addr in self.clients.keys():
+                            if addr[0] == client_ip and addr not in self.game_addresses:
+                                control_address = addr
+                                break
+                
+                if control_address:
+                    # Register game socket address for this control address
+                    self.game_addresses[control_address] = game_address
+                    
+                    # Handle game message types
+                    message_type: str = message.get('type', '')
+                    if message_type in ['join_game', 'update', 'shoot', 'throw_bomb', 'start_game', 'leave_game']:
                         self.handle_client_message(control_address, message)
                 
             except json.JSONDecodeError as e:
@@ -438,6 +461,11 @@ class GameServer:
             # Remove occupied cells of this player
             snake_set = self.clients[client_address].get('snake_set', set())
             self.occupied_cells.difference_update(snake_set)
+            
+            # Remove game socket address mapping
+            if client_address in self.game_addresses:
+                del self.game_addresses[client_address]
+            
             del self.clients[client_address]
             
             # Remove from game state
@@ -1168,9 +1196,8 @@ class GameServer:
                 disconnected: List[Tuple[str, int]] = []
                 for client_address in self.clients:
                     try:
-                        # Use the game socket address for this client's IP
-                        client_ip = client_address[0]
-                        game_address = self.game_addresses.get(client_ip)
+                        # Use the game socket address for this control address
+                        game_address = self.game_addresses.get(client_address)
                         
                         if game_address:
                             # Send to the registered game socket address

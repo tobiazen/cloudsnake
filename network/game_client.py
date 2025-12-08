@@ -210,6 +210,10 @@ class GameClient:
             message: Message to send
             use_game_socket: If True, use game socket (port 50001), otherwise use control socket (port 50000)
         """
+        # Add player_id to game socket messages for proper client identification
+        if use_game_socket and self.player_id:
+            message['player_id'] = str(self.player_id)
+        
         data = json.dumps(message).encode('utf-8')
         if use_game_socket:
             self.game_socket.sendto(data, self.game_address)
