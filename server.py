@@ -369,19 +369,7 @@ class GameServer:
             import random
             
             # Find an available color that's not in use
-            available = [c for c in self.available_colors if c not in self.used_colors]
-            
-            if not available:
-                # If all colors are used, generate a random color
-                color = (
-                    random.randint(50, 255),
-                    random.randint(50, 255),
-                    random.randint(50, 255)
-                )
-                pass  # print(f"⚠️  All predefined colors in use, generated random color: RGB{color}")
-            else:
-                # Assign the first available color
-                color = available[0]
+            color = [c for c in self.available_colors if c not in self.used_colors][0]
             
             # Mark color as used
             self.used_colors.add(color)
