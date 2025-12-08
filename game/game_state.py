@@ -78,7 +78,11 @@ class GameStateManager:
     
     def get_player_color(self, player_id: str) -> Tuple[int, int, int]:
         """Get a player's color as RGB tuple."""
-        return tuple(self.get_player_data(player_id).get('color', (255, 255, 255)))
+        color = self.get_player_data(player_id).get('color', (255, 255, 255))
+        # Handle None color (player in lobby)
+        if color is None:
+            return (255, 255, 255)  # Default white
+        return tuple(color)
     
     def get_player_bullets(self, player_id: str) -> int:
         """Get number of bullets a player has."""
@@ -230,7 +234,11 @@ class PlayerInfo:
     @property
     def color(self) -> Tuple[int, int, int]:
         """Player's color as RGB tuple."""
-        return tuple(self._data.get('color', (255, 255, 255)))
+        color = self._data.get('color', (255, 255, 255))
+        # Handle None color (player in lobby)
+        if color is None:
+            return (255, 255, 255)  # Default white
+        return tuple(color)
     
     @property
     def bullets(self) -> int:

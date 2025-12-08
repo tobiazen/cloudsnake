@@ -15,11 +15,11 @@
       "last_seen": "2025-12-04T20:37:09.614249"
     },
     "Tobias": {
-      "highscore": 884,
-      "games_played": 15,
+      "highscore": 892,
+      "games_played": 18,
       "total_kills": 1,
-      "total_deaths": 16,
-      "last_seen": "2025-12-08T19:14:17.670884"
+      "total_deaths": 20,
+      "last_seen": "2025-12-08T23:00:44.617185"
     },
     "BombThrower": {
       "highscore": 500,
@@ -80,6 +80,6 @@
   },
   "all_time_highscore": 920,
   "all_time_highscore_player": "Tobabr",
-  "total_games": 53,
-  "last_updated": "2025-12-08T19:34:38.704760"
+  "total_games": 56,
+  "last_updated": "2025-12-08T23:00:44.617203"
 }

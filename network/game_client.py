@@ -61,14 +61,10 @@ class GameClient:
             if response.get('type') == 'welcome':
                 self.connected = True
                 self.player_id = response.get('player_id')
-                self.my_color = response.get('color', (0, 255, 0))
+                self.my_color = response.get('color')  # Will be None in lobby
                 
-                # Send initial message on game socket to register our game address
-                join_msg = {
-                    'type': 'join_game',
-                    'player_id': self.player_id
-                }
-                self.send_to_server(join_msg, use_game_socket=True)
+                # Don't join game yet - wait for user to click "Start Game"
+                # No join_game message sent here
                 
                 return True
             elif response.get('type') == 'server_full':
@@ -129,9 +125,23 @@ class GameClient:
             self.game_state = message.get('state')
             self.display_game_state()
             print(f"✅ Game state updated: {message.get('message_count')}")
+            
+            # Update my_color from game state if player is in game
+            if self.player_id and self.game_state:
+                players = self.game_state.get('players', {})
+                if self.player_id in players:
+                    player_data = players[self.player_id]
+                    if player_data.get('in_game') and player_data.get('color'):
+                        self.my_color = tuple(player_data['color'])
         elif message_type == 'pong':
             # Heartbeat acknowledged
             pass
+        elif message_type == 'game_full':
+            # Game is full, can't join
+            print(f"⛔ {message.get('message', 'Game is full')}")
+        elif message_type == 'server_full':
+            # Server is full, can't connect
+            print(f"⛔ {message.get('message', 'Server is full')}")
         elif message_type == 'welcome':
             # Already handled in connect()
             pass

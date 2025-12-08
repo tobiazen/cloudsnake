@@ -348,60 +348,30 @@ class GameServer:
             return random.choice(directions) if directions else 'RIGHT'
     
     def handle_connect(self, client_address: Tuple[str, int], message: Dict[str, Any]) -> None:
-        """Handle new client connections"""
+        """Handle new client connections - players enter lobby first"""
         player_name: str = message.get('player_name', f'Player_{len(self.clients) + 1}')
         
         if client_address not in self.clients:
-            # Check if server is full
-            if len(self.clients) >= self.max_players:
-                # print(f"⛔ Server full! Rejected connection from {player_name} at {client_address[0]}:{client_address[1]}")
-                
-                # Send server full message
-                full_msg: Dict[str, Any] = {
-                    'type': 'server_full',
-                    'message': f'Server is full ({self.max_players}/{self.max_players} players). Please try again later.',
-                    'max_players': self.max_players,
-                    'current_players': len(self.clients)
-                }
-                self.send_to_client(client_address, full_msg)
-                return
-            
-            import random
-            
-            # Find an available color that's not in use
-            color = [c for c in self.available_colors if c not in self.used_colors][0]
-            
-            # Mark color as used
-            self.used_colors.add(color)
-            
-            # Random starting position for snake
-            start_x = random.randint(5, 35)
-            start_y = random.randint(5, 25)
-        
-            # Get a safe initial direction
-            safe_direction = self.get_safe_direction(start_x, start_y)
-        
-            # Normalize snake storage to tuples and maintain a per-player set
-            start_pos = (start_x, start_y)
+            # Create minimal lobby entry (no game initialization yet)
             self.clients[client_address] = {
                 'player_name': player_name,
                 'connected_at': time.time(),
                 'last_seen': time.time(),
-                'snake': [start_pos],
-                'snake_set': {start_pos},
-                'direction': safe_direction,
+                'snake': [],
+                'snake_set': set(),
+                'direction': 'RIGHT',
                 'score': 0,
-                'alive': True,
-                'color': color,
-                'bullets': 0,  # Starting bullet count
-                'bombs': 0,  # Starting bomb count
-                'in_game': False  # Start in lobby, not in active game
+                'alive': False,
+                'color': None,  # Color assigned when joining game
+                'bullets': 0,
+                'bombs': 0,
+                'in_game': False  # Start in lobby
             }
             
             # Add to game state
             self.game_state['players'][str(client_address)] = self.clients[client_address].copy()
             
-            # Track player joining (start a new game session)
+            # Initialize player stats if new
             if player_name not in self.stats['players']:
                 self.stats['players'][player_name] = {
                     'highscore': 0,
@@ -410,21 +380,19 @@ class GameServer:
                     'total_deaths': 0,
                     'last_seen': datetime.now().isoformat()
                 }
-            self.stats['players'][player_name]['games_played'] += 1
-            self.stats['total_games'] += 1
+            self.stats['players'][player_name]['last_seen'] = datetime.now().isoformat()
             self.save_stats()
             
-            # print(f"✅ Client connected: {player_name} from {client_address[0]}:{client_address[1]}")
-            # print(f"   Assigned color: RGB{color}")
+            # print(f"✅ Client connected to lobby: {player_name} from {client_address[0]}:{client_address[1]}")
             # print(f"   Total clients: {len(self.clients)}\n")
             
-            # Send welcome message
+            # Send welcome message (no color yet)
             welcome_msg: Dict[str, Any] = {
                 'type': 'welcome',
-                'message': f'Welcome to the game, {player_name}!',
+                'message': f'Welcome to the lobby, {player_name}!',
                 'player_id': str(client_address),
                 'player_count': len(self.clients),
-                'color': color
+                'color': None
             }
             self.send_to_client(client_address, welcome_msg)
         else:
@@ -438,11 +406,13 @@ class GameServer:
             player_name = self.clients[client_address]['player_name']
             player_color = self.clients[client_address].get('color')
             final_score = self.clients[client_address].get('score', 0)
+            was_in_game = self.clients[client_address].get('in_game', False)
             
-            # Update player statistics on disconnect
-            self.update_player_stats(player_name, final_score)
+            # Update player statistics on disconnect (only if was in game)
+            if was_in_game:
+                self.update_player_stats(player_name, final_score)
             
-            # Free up the color for reuse
+            # Free up the color for reuse (only if color was assigned)
             if player_color and player_color in self.used_colors:
                 self.used_colors.remove(player_color)
             
@@ -461,7 +431,8 @@ class GameServer:
                 del self.game_state['players'][str(client_address)]
             
             # print(f"❌ Client disconnected: {player_name} from {client_address[0]}:{client_address[1]}")
-            # print(f"   Color RGB{player_color} is now available")
+            if player_color:
+                pass  # print(f"   Color RGB{player_color} is now available")
             # print(f"   Total clients: {len(self.clients)}\n")
     
     def handle_player_update(self, client_address: Tuple[str, int], message: Dict[str, Any]) -> None:
@@ -520,41 +491,90 @@ class GameServer:
             # Update game state will happen in the game loop
     
     def handle_start_game(self, client_address: Tuple[str, int]) -> None:
-        """Handle player starting game (joining from lobby)"""
-        if client_address in self.clients:
-            self.clients[client_address]['in_game'] = True
-            self.clients[client_address]['alive'] = True
-            # Reset position and state
-            import random
-            start_x = random.randint(5, 35)
-            start_y = random.randint(5, 25)
-            safe_direction = self.get_safe_direction(start_x, start_y)
-            start_pos = (start_x, start_y)
-            # Remove old position from occupied cells
-            old_set = self.clients[client_address].get('snake_set', set())
-            self.occupied_cells.difference_update(old_set)
-            # Set new position
-            self.clients[client_address]['snake'] = [start_pos]
-            self.clients[client_address]['snake_set'] = {start_pos}
-            self.clients[client_address]['direction'] = safe_direction
-            self.clients[client_address]['score'] = 0
-            self.clients[client_address]['bullets'] = 0
-            self.clients[client_address]['bombs'] = 0
-            self.occupied_cells.add(start_pos)
-            # print(f"🎮 {self.clients[client_address]['player_name']} started game")
+        """Handle player starting game (joining from lobby) - full game initialization"""
+        if client_address not in self.clients:
+            return
+        
+        # Check if game is full (count players already in game)
+        players_in_game = len([c for c in self.clients.values() if c.get('in_game', False)])
+        if players_in_game >= self.max_players:
+            # print(f"⛔ Game full! Rejected start_game from {self.clients[client_address]['player_name']}")
+            
+            # Send game full message via game socket (since start_game came via game socket)
+            # Game address should already be registered by listen_game() before this handler is called
+            full_msg: Dict[str, Any] = {
+                'type': 'game_full',
+                'message': f'Game is full ({self.max_players}/{self.max_players} players). Please wait for a slot.',
+                'max_players': self.max_players,
+                'current_players': players_in_game
+            }
+            # Use game socket since request came via game socket
+            game_address = self.game_addresses.get(client_address)
+            if game_address:
+                self.send_to_client(game_address, full_msg, use_game_socket=True)
+            return
+        
+        import random
+        
+        # Allocate color (find first available)
+        available = [c for c in self.available_colors if c not in self.used_colors]
+        if not available:
+            # No colors available (shouldn't happen if max_players <= len(available_colors))
+            # print(f"⚠️  No colors available for {self.clients[client_address]['player_name']}")
+            return
+        
+        color = available[0]
+        self.used_colors.add(color)
+        
+        # Random starting position for snake
+        start_x = random.randint(5, 35)
+        start_y = random.randint(5, 25)
+        
+        # Get a safe initial direction
+        safe_direction = self.get_safe_direction(start_x, start_y)
+        
+        # Initialize game state
+        start_pos = (start_x, start_y)
+        old_set = self.clients[client_address].get('snake_set', set())
+        self.occupied_cells.difference_update(old_set)
+        
+        self.clients[client_address]['in_game'] = True
+        self.clients[client_address]['alive'] = True
+        self.clients[client_address]['snake'] = [start_pos]
+        self.clients[client_address]['snake_set'] = {start_pos}
+        self.clients[client_address]['direction'] = safe_direction
+        self.clients[client_address]['score'] = 0
+        self.clients[client_address]['color'] = color
+        self.clients[client_address]['bullets'] = 0
+        self.clients[client_address]['bombs'] = 0
+        self.occupied_cells.add(start_pos)
+        
+        # Track game session start
+        self.stats['players'][self.clients[client_address]['player_name']]['games_played'] += 1
+        self.stats['total_games'] += 1
+        self.save_stats()
+        
+        # print(f"🎮 {self.clients[client_address]['player_name']} started game")
+        # print(f"   Assigned color: RGB{color}")
     
     def handle_leave_game(self, client_address: Tuple[str, int]) -> None:
         """Handle player leaving game (returning to lobby) - same as dying"""
         if client_address in self.clients:
             player_name = self.clients[client_address]['player_name']
             final_score = self.clients[client_address].get('score', 0)
+            player_color = self.clients[client_address].get('color')
             
             # Update player statistics (treat as death)
             self.update_player_stats(player_name, final_score, died=True)
             
+            # Free up the color for reuse
+            if player_color and player_color in self.used_colors:
+                self.used_colors.remove(player_color)
+            
             # Mark as not in game and not alive
             self.clients[client_address]['in_game'] = False
             self.clients[client_address]['alive'] = False
+            self.clients[client_address]['color'] = None
             self.clients[client_address]['bullets'] = 0
             self.clients[client_address]['bombs'] = 0
             
