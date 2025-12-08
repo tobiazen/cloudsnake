@@ -14,6 +14,8 @@ BulletData = Dict[str, Any]
 BombData = Dict[str, Any]
 
 class GameServer:
+    mess_count: int = 0
+
     def __init__(self, host: str = '0.0.0.0', port: int = 50000) -> None:
         self.host = host
         self.port = port
@@ -1100,9 +1102,11 @@ class GameServer:
                 
                 # Prepare broadcast message
                 broadcast_msg: Dict[str, Any] = {
+                    'message_count': self.mess_count,
                     'type': 'game_state',
                     'state': self.game_state
                 }
+                self.mess_count += 1
                 
                 # Send to all connected clients
                 disconnected: List[Tuple[str, int]] = []

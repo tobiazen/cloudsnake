@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any
 
 class GameClient:
     """Handle network communication with CloudSnake game server"""
-    
+
     def __init__(self, server_ip: str, server_port: int = 50000, player_name: str = "Player"):
         self.server_ip = server_ip
         self.server_port = server_port
@@ -112,6 +112,8 @@ class GameClient:
         if message_type == 'game_state':
             self.game_state = message.get('state')
             self.display_game_state()
+            print(f"✅ Game state updated: {message.get('message_count')}")
+            self.rec_count += 1
         elif message_type == 'pong':
             # Heartbeat acknowledged
             pass
