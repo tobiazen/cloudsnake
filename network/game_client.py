@@ -12,15 +12,23 @@ class GameClient:
     def __init__(self, server_ip: str, server_port: int = 50000, player_name: str = "Player"):
         self.server_ip = server_ip
         self.server_port = server_port
+        self.game_port = 50001  # Game communication port
         self.server_address = (server_ip, server_port)
+        self.game_address = (server_ip, self.game_port)
         self.player_name = player_name
         
-        # Create UDP socket
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.settimeout(2.0)  # 2 second timeout for receiving
+        # Create UDP sockets
+        # Control socket (port 50000): connect, heartbeat, commands
+        self.control_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.control_socket.settimeout(2.0)  # 2 second timeout for receiving
+        
+        # Game socket (port 50001): game controls, game state updates
+        self.game_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.game_socket.settimeout(2.0)  # 2 second timeout for receiving
         
         # Client state
-        self.connected = False
+        self.connected = False  # Connected to server on control port
+        self.in_game = False    # Connected to game on game port
         self.running = False
         self.player_id = None
         self.game_state = None
@@ -47,13 +55,21 @@ class GameClient:
             self.send_to_server(connect_msg)
             
             # Wait for welcome message
-            data, addr = self.socket.recvfrom(1024)
+            data, addr = self.control_socket.recvfrom(1024)
             response = json.loads(data.decode('utf-8'))
             
             if response.get('type') == 'welcome':
                 self.connected = True
                 self.player_id = response.get('player_id')
                 self.my_color = response.get('color', (0, 255, 0))
+                
+                # Send initial message on game socket to register our game address
+                join_msg = {
+                    'type': 'join_game',
+                    'player_id': self.player_id
+                }
+                self.send_to_server(join_msg, use_game_socket=True)
+                
                 return True
             elif response.get('type') == 'server_full':
                 return False
@@ -86,10 +102,10 @@ class GameClient:
         self.run()
     
     def receive_messages(self) -> None:
-        """Receive messages from server"""
+        """Receive messages from server (game state updates on game socket)"""
         while self.running:
             try:
-                data, addr = self.socket.recvfrom(4096)
+                data, addr = self.game_socket.recvfrom(4096)
                 message = json.loads(data.decode('utf-8'))
                 self.handle_server_message(message)
                 
@@ -113,7 +129,6 @@ class GameClient:
             self.game_state = message.get('state')
             self.display_game_state()
             print(f"✅ Game state updated: {message.get('message_count')}")
-            self.rec_count += 1
         elif message_type == 'pong':
             # Heartbeat acknowledged
             pass
@@ -145,6 +160,7 @@ class GameClient:
         while self.running:
             if self.connected:
                 ping_msg: Dict[str, str] = {'type': 'ping'}
+                print("🔄 Sending heartbeat ping to server...")
                 try:
                     self.send_to_server(ping_msg)
                 except Exception as e:
@@ -158,22 +174,24 @@ class GameClient:
             'type': 'update',
             'data': self.player_data
         }
-        
-        self.send_to_server(update_msg)
+        print("➡️  Sending player update to server...")
+        self.send_to_server(update_msg, use_game_socket=True)
     
     def shoot(self) -> None:
         """Send shoot request to server"""
         shoot_msg: Dict[str, str] = {
             'type': 'shoot'
         }
-        self.send_to_server(shoot_msg)
+        print("➡️  Sending shoot request to server...")
+        self.send_to_server(shoot_msg, use_game_socket=True)
     
     def throw_bomb(self) -> None:
         """Send throw bomb request to server"""
         throw_bomb_msg: Dict[str, str] = {
             'type': 'throw_bomb'
         }
-        self.send_to_server(throw_bomb_msg)
+        print("➡️  Sending throw bomb request to server...")
+        self.send_to_server(throw_bomb_msg, use_game_socket=True)
     
     def respawn(self) -> None:
         """Request respawn from server"""
@@ -183,12 +201,20 @@ class GameClient:
                 'respawn': True
             }
         }
-        self.send_to_server(respawn_msg)
+        self.send_to_server(respawn_msg, use_game_socket=True)
     
-    def send_to_server(self, message: Dict[str, Any]) -> None:
-        """Send message to server"""
+    def send_to_server(self, message: Dict[str, Any], use_game_socket: bool = False) -> None:
+        """Send message to server
+        
+        Args:
+            message: Message to send
+            use_game_socket: If True, use game socket (port 50001), otherwise use control socket (port 50000)
+        """
         data = json.dumps(message).encode('utf-8')
-        self.socket.sendto(data, self.server_address)
+        if use_game_socket:
+            self.game_socket.sendto(data, self.game_address)
+        else:
+            self.control_socket.sendto(data, self.server_address)
     
     def disconnect(self) -> None:
         """Disconnect from server"""

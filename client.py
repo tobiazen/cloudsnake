@@ -764,12 +764,12 @@ class GameGUI:
                         elif i == 1:  # Start Game / Leave Game
                             if self.in_game:
                                 # Leave game - return to lobby
-                                self.client.send_to_server({'type': 'leave_game'})
+                                self.client.send_to_server({'type': 'leave_game'}, use_game_socket=True)
                                 self.in_game = False
                                 self.left_voluntarily = True  # Mark as voluntary leave
                             else:
                                 # Start game - join active game
-                                self.client.send_to_server({'type': 'start_game'})
+                                self.client.send_to_server({'type': 'start_game'}, use_game_socket=True)
                                 self.in_game = True
                                 self.left_voluntarily = False  # Reset flag when starting game
                             self.game_menu_open = False
@@ -829,10 +829,11 @@ class GameGUI:
             if new_direction:
                 # Send to server, but don't update local direction until server confirms
                 # This prevents rapid key presses from causing illegal 180-degree turns
+                print(f"Requesting direction change to {new_direction}")
                 self.client.send_to_server({
                     'type': 'update',
                     'data': {'direction': new_direction}
-                })
+                }, use_game_socket=True)
     
     def start_connection(self) -> None:
         """Start connection to server"""

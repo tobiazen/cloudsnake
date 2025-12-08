@@ -19,8 +19,18 @@ class GameServer:
     def __init__(self, host: str = '0.0.0.0', port: int = 50000) -> None:
         self.host = host
         self.port = port
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind((self.host, self.port))
+        self.game_port = 50001  # Game communication port
+        
+        # Create control socket (port 50000) for connect, heartbeat, commands
+        self.control_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.control_socket.bind((self.host, self.port))
+        
+        # Create game socket (port 50001) for game controls and state updates
+        self.game_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.game_socket.bind((self.host, self.game_port))
+        
+        # Map player IPs to their game socket addresses: {ip: game_address}
+        self.game_addresses: Dict[str, Tuple[str, int]] = {}
         
         # Store connected clients: {client_address: {player_data}}
         self.clients: Dict[Tuple[str, int], PlayerData] = {}
@@ -185,23 +195,69 @@ class GameServer:
         broadcast_thread = threading.Thread(target=self.broadcast_game_state, daemon=True)
         broadcast_thread.start()
         
-        # Start listening for client messages
-        self.listen()
+        # Start listening threads for both sockets
+        control_thread = threading.Thread(target=self.listen_control, daemon=True)
+        control_thread.start()
+        
+        game_thread = threading.Thread(target=self.listen_game, daemon=True)
+        game_thread.start()
+        
+        # Keep main thread alive
+        try:
+            while self.running:
+                time.sleep(0.1)
+        except KeyboardInterrupt:
+            self.stop()
     
-    def listen(self) -> None:
-        """Listen for incoming UDP messages from clients"""
+    def listen_control(self) -> None:
+        """Listen for control messages on port 50000 (connect, heartbeat, commands)"""
         while self.running:
             try:
-                data, client_address = self.socket.recvfrom(1024)
+                data, client_address = self.control_socket.recvfrom(1024)
                 message = json.loads(data.decode('utf-8'))
                 
-                # Handle different message types
-                self.handle_client_message(client_address, message)
+                # Handle control message types
+                message_type: str = message.get('type', '')
+                if message_type in ['connect', 'disconnect', 'ping']:
+                    self.handle_client_message(client_address, message)
                 
             except json.JSONDecodeError as e:
-                print(f"❌ Received invalid JSON: {e}")
+                print(f"❌ Received invalid JSON on control socket: {e}")
             except Exception as e:
-                print(f"❌ Error receiving data: {e}")
+                print(f"❌ Error receiving control data: {e}")
+    
+    def listen_game(self) -> None:
+        """Listen for game messages on port 50001 (game controls, actions)"""
+        while self.running:
+            try:
+                data, client_address = self.game_socket.recvfrom(1024)
+                message = json.loads(data.decode('utf-8'))
+                
+                # Register this address as the game socket address for this IP
+                client_ip = client_address[0]
+                self.game_addresses[client_ip] = client_address
+                
+                # Handle game message types
+                message_type: str = message.get('type', '')
+                if message_type in ['join_game', 'update', 'shoot', 'throw_bomb', 'start_game', 'leave_game']:
+                    # Find the control address for this IP
+                    control_address = None
+                    for addr in self.clients.keys():
+                        if addr[0] == client_ip:
+                            control_address = addr
+                            break
+                    
+                    if control_address:
+                        self.handle_client_message(control_address, message)
+                
+            except json.JSONDecodeError as e:
+                print(f"❌ Received invalid JSON on game socket: {e}")
+            except Exception as e:
+                print(f"❌ Error receiving game data: {e}")
+    
+    def listen(self) -> None:
+        """DEPRECATED: Old single-socket listen method"""
+        pass
     
     def handle_client_message(self, client_address: Tuple[str, int], message: Dict[str, Any]) -> None:
         """Handle messages from clients"""
@@ -1107,12 +1163,21 @@ class GameServer:
                     'state': self.game_state
                 }
                 self.mess_count += 1
-                
-                # Send to all connected clients
+
+                # Send to all connected clients using game socket
                 disconnected: List[Tuple[str, int]] = []
                 for client_address in self.clients:
                     try:
-                        self.send_to_client(client_address, broadcast_msg)
+                        # Use the game socket address for this client's IP
+                        client_ip = client_address[0]
+                        game_address = self.game_addresses.get(client_ip)
+                        
+                        if game_address:
+                            # Send to the registered game socket address
+                            self.send_to_client(game_address, broadcast_msg, use_game_socket=True)
+                        else:
+                            # Client hasn't sent any game messages yet, skip
+                            pass
                     except Exception as e:
                         print(f"❌ Error sending to {client_address}: {e}")
                         disconnected.append(client_address)
@@ -1134,15 +1199,25 @@ class GameServer:
             
             time.sleep(self.broadcast_interval)
     
-    def send_to_client(self, client_address: Tuple[str, int], message: Dict[str, Any]) -> None:
-        """Send message to specific client"""
+    def send_to_client(self, client_address: Tuple[str, int], message: Dict[str, Any], use_game_socket: bool = False) -> None:
+        """Send message to specific client
+        
+        Args:
+            client_address: Client address tuple
+            message: Message to send
+            use_game_socket: If True, use game socket (port 50001), otherwise use control socket (port 50000)
+        """
         data = json.dumps(message).encode('utf-8')
-        self.socket.sendto(data, client_address)
+        if use_game_socket:
+            self.game_socket.sendto(data, client_address)
+        else:
+            self.control_socket.sendto(data, client_address)
     
     def stop(self) -> None:
         """Stop the server"""
         self.running = False
-        self.socket.close()
+        self.control_socket.close()
+        self.game_socket.close()
         # print("\n🛑 Server stopped")
 
 def main():

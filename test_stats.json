@@ -1,0 +1,15 @@
+{
+  "players": {
+    "TestPlayer": {
+      "highscore": 0,
+      "games_played": 0,
+      "total_kills": 0,
+      "total_deaths": 1,
+      "last_seen": "2025-12-06T15:37:13.029148"
+    }
+  },
+  "all_time_highscore": 0,
+  "all_time_highscore_player": null,
+  "total_games": 0,
+  "last_updated": "2025-12-06T15:37:13.029149"
+}
