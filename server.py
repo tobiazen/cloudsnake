@@ -270,7 +270,7 @@ class GameServer:
                     
                     # Handle game message types
                     message_type: str = message.get('type', '')
-                    if message_type in ['join_game', 'update', 'shoot', 'throw_bomb', 'start_game', 'leave_game']:
+                    if message_type in ['update', 'shoot', 'throw_bomb', 'start_game', 'leave_game']:
                         self.handle_client_message(control_address, message)
                 
             except json.JSONDecodeError as e:
