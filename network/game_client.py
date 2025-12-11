@@ -63,8 +63,15 @@ class GameClient:
                 self.player_id = response.get('player_id')
                 self.my_color = response.get('color')  # Will be None in lobby
                 
+                # Send initial message on game socket to register game address with server
+                # This ensures we receive game state broadcasts even while in lobby
+                lobby_msg = {
+                    'type': 'lobby_ping',
+                    'player_id': str(self.player_id)
+                }
+                self.send_to_server(lobby_msg, use_game_socket=True)
+                
                 # Don't join game yet - wait for user to click "Start Game"
-                # No join_game message sent here
                 
                 return True
             elif response.get('type') == 'server_full':

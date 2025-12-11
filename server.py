@@ -324,8 +324,9 @@ class GameServer:
                     
                     # Handle game message types
                     message_type: str = message.get('type', '')
-                    if message_type in ['update', 'shoot', 'throw_bomb', 'start_game', 'leave_game']:
-                        self.handle_client_message(control_address, message)
+                    if message_type in ['update', 'shoot', 'throw_bomb', 'start_game', 'leave_game', 'lobby_ping']:
+                        if message_type != 'lobby_ping':  # Don't process lobby_ping, just register address
+                            self.handle_client_message(control_address, message)
                 
             except json.JSONDecodeError as e:
                 addr_str = f"from {game_address}" if game_address else ""
