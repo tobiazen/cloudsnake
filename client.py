@@ -926,17 +926,17 @@ class GameGUI:
             if self.client.connect():
                 self.client.running = True
                 
-                # Start receive thread
+                # Start receive thread for game socket (game state updates)
                 receive_thread = threading.Thread(target=self.client.receive_messages, daemon=True)
                 receive_thread.start()
+                
+                # Start receive thread for control socket (pong responses)
+                control_thread = threading.Thread(target=self.client.receive_control_messages, daemon=True)
+                control_thread.start()
                 
                 # Start heartbeat thread
                 heartbeat_thread = threading.Thread(target=self.client.send_heartbeat, daemon=True)
                 heartbeat_thread.start()
-                
-                # Start background thread to run client loop
-                client_thread = threading.Thread(target=self.client.run, daemon=True)
-                client_thread.start()
                 
                 self.state = 'game'
             else:

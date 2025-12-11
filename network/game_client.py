@@ -1,6 +1,5 @@
 """GameClient - Network communication for CloudSnake"""
 import socket
-import threading
 import time
 import json
 from typing import Optional, Dict, Any
@@ -65,6 +64,7 @@ class GameClient:
                 
                 # Send initial message on game socket to register game address with server
                 # This ensures we receive game state broadcasts even while in lobby
+                print("🔧 DEBUG: Sending lobby_ping to register game socket")
                 lobby_msg = {
                     'type': 'lobby_ping',
                     'player_id': str(self.player_id)
@@ -85,29 +85,6 @@ class GameClient:
         
         return False
     
-    def start(self) -> None:
-        """Start the client"""
-        if not self.connected:
-            if not self.connect():
-                return
-        
-        self.running = True
-        
-        # Start receive thread for game socket (game state updates)
-        receive_thread = threading.Thread(target=self.receive_messages, daemon=True)
-        receive_thread.start()
-        
-        # Start receive thread for control socket (pong responses)
-        control_thread = threading.Thread(target=self.receive_control_messages, daemon=True)
-        control_thread.start()
-        
-        # Start heartbeat thread (send ping every 2 seconds)
-        heartbeat_thread = threading.Thread(target=self.send_heartbeat, daemon=True)
-        heartbeat_thread.start()
-        
-        # Main client loop
-        self.run()
-    
     def receive_messages(self) -> None:
         """Receive messages from server (game state updates on game socket)"""
         while self.running:
@@ -127,11 +104,14 @@ class GameClient:
     
     def receive_control_messages(self) -> None:
         """Receive messages from server (pong responses on control socket)"""
+        print("🔧 DEBUG: receive_control_messages thread STARTED")
         while self.running:
             try:
                 data, addr = self.control_socket.recvfrom(1024)
+                print(f"🔧 DEBUG: Received {len(data)} bytes on control socket")
                 message = json.loads(data.decode('utf-8'))
                 message_type = message.get('type', '')
+                print(f"🔧 DEBUG: Control message type: {message_type}")
                 
                 if message_type == 'pong':
                     # Heartbeat acknowledged
@@ -141,11 +121,12 @@ class GameClient:
             except socket.timeout:
                 # Timeout is normal, continue
                 continue
-            except json.JSONDecodeError:
-                print("❌ Received invalid JSON on control socket")
+            except json.JSONDecodeError as e:
+                print(f"❌ Received invalid JSON on control socket: {e}")
             except Exception as e:
                 if self.running:
                     print(f"❌ Error receiving control data: {e}")
+        print("🔧 DEBUG: receive_control_messages thread STOPPED")
     
     def handle_server_message(self, message: Dict[str, Any]) -> None:
         """Handle messages from server"""
@@ -282,9 +263,3 @@ class GameClient:
             if time_since_update > self.update_timeout:
                 print(f"⚠️  Connection timeout: No updates for {time_since_update:.1f}s")
                 self.connected = False
-    
-    def run(self) -> None:
-        """Main client loop - for background operation with GUI"""
-        while self.running:
-            self.check_connection_timeout()
-            time.sleep(0.1)
