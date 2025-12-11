@@ -3,6 +3,7 @@ import threading
 import time
 import json
 import os
+import logging
 from typing import Dict, Tuple, Any, List, Set, Optional
 from datetime import datetime
 
@@ -17,6 +18,10 @@ class GameServer:
     mess_count: int = 0
 
     def __init__(self, host: str = '0.0.0.0', port: int = 50000) -> None:
+        # Setup logging
+        self.setup_logging()
+        self.logger = logging.getLogger('CloudsnakeServer')
+        
         self.host = host
         self.port = port
         self.game_port = 50001  # Game communication port
@@ -104,16 +109,48 @@ class GameServer:
         # Statistics tracking
         self.stats_file = 'player_stats.json'
         self.stats: Dict[str, Any] = self.load_stats()
+    
+    def setup_logging(self) -> None:
+        """Configure logging for the server"""
+        # Create logs directory if it doesn't exist
+        log_dir = 'logs'
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        
+        # Create handlers
+        file_handler = logging.FileHandler(os.path.join(log_dir, 'cloudsnake-server.log'))
+        file_handler.setLevel(logging.INFO)
+        
+        error_handler = logging.FileHandler(os.path.join(log_dir, 'cloudsnake-server-errors.log'))
+        error_handler.setLevel(logging.ERROR)
+        
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        
+        # Create formatter
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        error_handler.setFormatter(formatter)
+        console_handler.setFormatter(formatter)
+        
+        # Configure root logger
+        logging.basicConfig(
+            level=logging.INFO,
+            handlers=[file_handler, error_handler, console_handler]
+        )
         
     def load_stats(self) -> Dict[str, Any]:
         """Load player statistics from file"""
         if os.path.exists(self.stats_file):
             try:
                 with open(self.stats_file, 'r') as f:
-                    return json.load(f)
+                    stats = json.load(f)
+                    logging.info(f"Loaded statistics for {len(stats.get('players', {}))} players")
+                    return stats
             except Exception as e:
-                print(f"⚠️  Error loading stats: {e}")
+                logging.error(f"Error loading stats: {e}", exc_info=True)
                 return self.create_empty_stats()
+        logging.info("No existing stats file found, creating new one")
         return self.create_empty_stats()
     
     def create_empty_stats(self) -> Dict[str, Any]:
@@ -132,8 +169,9 @@ class GameServer:
             self.stats['last_updated'] = datetime.now().isoformat()
             with open(self.stats_file, 'w') as f:
                 json.dump(self.stats, f, indent=2)
+            logging.debug("Statistics saved successfully")
         except Exception as e:
-            print(f"⚠️  Error saving stats: {e}")
+            logging.error(f"Error saving stats: {e}", exc_info=True)
     
     def update_player_stats(self, player_name: str, score: int, kills: int = 0, died: bool = False) -> None:
         """Update statistics for a player"""
@@ -186,28 +224,38 @@ class GameServer:
     def start(self) -> None:
         """Start the server"""
         self.running = True
+        self.logger.info(f"Starting game server on {self.host}:{self.port}")
+        self.logger.info(f"Game socket listening on port {self.game_port}")
+        self.logger.info(f"Max players: {self.max_players}")
         
         # Start broadcast thread
         broadcast_thread = threading.Thread(target=self.broadcast_game_state, daemon=True)
         broadcast_thread.start()
+        self.logger.info("Broadcast thread started")
         
         # Start listening threads for both sockets
         control_thread = threading.Thread(target=self.listen_control, daemon=True)
         control_thread.start()
+        self.logger.info("Control socket thread started")
         
         game_thread = threading.Thread(target=self.listen_game, daemon=True)
         game_thread.start()
+        self.logger.info("Game socket thread started")
+        
+        self.logger.info("Server is ready and waiting for connections")
         
         # Keep main thread alive
         try:
             while self.running:
                 time.sleep(0.1)
         except KeyboardInterrupt:
+            self.logger.info("Received keyboard interrupt, shutting down...")
             self.stop()
     
     def listen_control(self) -> None:
         """Listen for control messages on port 50000 (connect, heartbeat, commands)"""
         while self.running:
+            client_address = None
             try:
                 data, client_address = self.control_socket.recvfrom(1024)
                 message = json.loads(data.decode('utf-8'))
@@ -218,13 +266,15 @@ class GameServer:
                     self.handle_client_message(client_address, message)
                 
             except json.JSONDecodeError as e:
-                print(f"❌ Received invalid JSON on control socket: {e}")
+                addr_str = f"from {client_address}" if client_address else ""
+                self.logger.warning(f"Received invalid JSON on control socket {addr_str}: {e}")
             except Exception as e:
-                print(f"❌ Error receiving control data: {e}")
+                self.logger.error(f"Error receiving control data: {e}", exc_info=True)
     
     def listen_game(self) -> None:
         """Listen for game messages on port 50001 (game controls, actions)"""
         while self.running:
+            game_address = None
             try:
                 data, game_address = self.game_socket.recvfrom(1024)
                 message = json.loads(data.decode('utf-8'))
@@ -270,9 +320,10 @@ class GameServer:
                         self.handle_client_message(control_address, message)
                 
             except json.JSONDecodeError as e:
-                print(f"❌ Received invalid JSON on game socket: {e}")
+                addr_str = f"from {game_address}" if game_address else ""
+                self.logger.warning(f"Received invalid JSON on game socket {addr_str}: {e}")
             except Exception as e:
-                print(f"❌ Error receiving game data: {e}")
+                self.logger.error(f"Error receiving game data: {e}", exc_info=True)
     
     def listen(self) -> None:
         """DEPRECATED: Old single-socket listen method"""
@@ -346,6 +397,7 @@ class GameServer:
         player_name: str = message.get('player_name', f'Player_{len(self.clients) + 1}')
         
         if client_address not in self.clients:
+            self.logger.info(f"New connection: {player_name} from {client_address[0]}:{client_address[1]}")
             # Create minimal lobby entry (no game initialization yet)
             self.clients[client_address] = {
                 'player_name': player_name,
@@ -386,9 +438,11 @@ class GameServer:
                 'color': None
             }
             self.send_to_client(client_address, welcome_msg)
+            self.logger.info(f"{player_name} entered the lobby (Total: {len(self.clients)} connected)")
         else:
             # Client reconnecting
             self.clients[client_address]['last_seen'] = time.time()
+            self.logger.debug(f"{player_name} reconnected from {client_address[0]}")
     
     def handle_disconnect(self, client_address: Tuple[str, int]) -> None:
         """Handle client disconnection"""
@@ -397,6 +451,8 @@ class GameServer:
             player_color = self.clients[client_address].get('color')
             final_score = self.clients[client_address].get('score', 0)
             was_in_game = self.clients[client_address].get('in_game', False)
+            
+            self.logger.info(f"Player disconnected: {player_name} (Score: {final_score}, Was in game: {was_in_game})")
             
             # Update player statistics on disconnect (only if was in game)
             if was_in_game:
@@ -419,6 +475,9 @@ class GameServer:
             # Remove from game state
             if str(client_address) in self.game_state['players']:
                 del self.game_state['players'][str(client_address)]
+            
+            remaining_players = len(self.clients)
+            self.logger.info(f"Remaining players: {remaining_players}")
     
     def handle_player_update(self, client_address: Tuple[str, int], message: Dict[str, Any]) -> None:
         """Handle player state updates (direction changes, respawns)"""
@@ -479,9 +538,12 @@ class GameServer:
         if client_address not in self.clients:
             return
         
+        player_name = self.clients[client_address]['player_name']
+        
         # Check if game is full (count players already in game)
         players_in_game = len([c for c in self.clients.values() if c.get('in_game', False)])
         if players_in_game >= self.max_players:
+            self.logger.warning(f"{player_name} tried to join full game ({players_in_game}/{self.max_players})")
             # Send game full message via game socket (since start_game came via game socket)
             # Game address should already be registered by listen_game() before this handler is called
             full_msg: Dict[str, Any] = {
@@ -534,6 +596,8 @@ class GameServer:
         self.stats['players'][self.clients[client_address]['player_name']]['games_played'] += 1
         self.stats['total_games'] += 1
         self.save_stats()
+        
+        self.logger.info(f"{player_name} started game at ({start_x}, {start_y}) with color {color} (Players in game: {players_in_game + 1}/{self.max_players})")
     
     def handle_leave_game(self, client_address: Tuple[str, int]) -> None:
         """Handle player leaving game (returning to lobby) - same as dying"""
@@ -541,6 +605,8 @@ class GameServer:
             player_name = self.clients[client_address]['player_name']
             final_score = self.clients[client_address].get('score', 0)
             player_color = self.clients[client_address].get('color')
+            
+            self.logger.info(f"{player_name} left the game (Final score: {final_score})")
             
             # Update player statistics (treat as death)
             self.update_player_stats(player_name, final_score, died=True)
@@ -837,6 +903,8 @@ class GameServer:
                                 # Kill the snake and clean up
                                 victim_name = client_data['player_name']
                                 victim_score = client_data.get('score', 0)
+                                shooter_name = bullet.get('shooter_name', 'Unknown')
+                                self.logger.info(f"💀 {shooter_name} headshotted {victim_name} (Score: {victim_score})")
                                 client_data['alive'] = False
                                 client_data['bullets'] = 0
                                 client_data['bombs'] = 0
@@ -870,6 +938,9 @@ class GameServer:
                                 # Deduct score (50 points per removed segment)
                                 score_deduction = len(removed_segments) * 50
                                 client_data['score'] = max(0, client_data.get('score', 0) - score_deduction)
+                                shooter_name = bullet.get('shooter_name', 'Unknown')
+                                victim_name = client_data['player_name']
+                                self.logger.debug(f"{shooter_name} hit {victim_name}'s body, removed {len(removed_segments)} segments (-{score_deduction} points)")
                         
                         hit_occurred = True
                         bullets_to_remove.append(i)
@@ -932,6 +1003,8 @@ class GameServer:
                                         # Kill the snake and clean up
                                         victim_name = client_data['player_name']
                                         victim_score = client_data.get('score', 0)
+                                        thrower_name = bomb.get('thrower_name', 'Unknown')
+                                        self.logger.info(f"💣 {thrower_name}'s bomb killed {victim_name} (Score: {victim_score})")
                                         client_data['alive'] = False
                                         client_data['bullets'] = 0
                                         client_data['bombs'] = 0
@@ -1039,6 +1112,7 @@ class GameServer:
                 new_head[1] < 0 or new_head[1] >= self.grid_height):
                 player_name = client_data['player_name']
                 final_score = client_data.get('score', 0)
+                self.logger.info(f"💥 {player_name} hit a wall (Score: {final_score})")
                 client_data['alive'] = False
                 client_data['bullets'] = 0
                 client_data['bombs'] = 0
@@ -1049,6 +1123,7 @@ class GameServer:
             if new_head in client_data.get('snake_set', set()):
                 player_name = client_data['player_name']
                 final_score = client_data.get('score', 0)
+                self.logger.info(f"🔄 {player_name} collided with themselves (Score: {final_score})")
                 client_data['alive'] = False
                 client_data['bullets'] = 0
                 client_data['bombs'] = 0
@@ -1060,6 +1135,7 @@ class GameServer:
                 # Collision with another snake - player dies
                 player_name = client_data['player_name']
                 final_score = client_data.get('score', 0)
+                self.logger.info(f"🐍 {player_name} collided with another snake (Score: {final_score})")
                 client_data['alive'] = False
                 client_data['bullets'] = 0
                 client_data['bombs'] = 0
@@ -1183,7 +1259,7 @@ class GameServer:
                             # Client hasn't sent any game messages yet, skip
                             pass
                     except Exception as e:
-                        print(f"❌ Error sending to {client_address}: {e}")
+                        self.logger.error(f"Error sending to {client_address}: {e}")
                         disconnected.append(client_address)
                 
                 # Remove disconnected clients
@@ -1198,6 +1274,8 @@ class GameServer:
                         inactive.append(client_address)
                 
                 for client_address in inactive:
+                    player_name = self.clients[client_address].get('player_name', 'Unknown')
+                    self.logger.warning(f"Client timeout: {player_name} ({client_address[0]})")
                     self.handle_disconnect(client_address)
             
             time.sleep(self.broadcast_interval)
@@ -1218,19 +1296,23 @@ class GameServer:
     
     def stop(self) -> None:
         """Stop the server"""
+        self.logger.info("Shutting down server...")
         self.running = False
         self.control_socket.close()
         self.game_socket.close()
+        self.logger.info("Server stopped")
 
 def main():
     server = GameServer()
+    logger = logging.getLogger('Main')
     
     try:
         server.start()
     except KeyboardInterrupt:
+        logger.info("Keyboard interrupt received")
         server.stop()
     except Exception as e:
-        print(f"\n❌ Server error: {e}")
+        logger.critical(f"Fatal server error: {e}", exc_info=True)
         server.stop()
 
 if __name__ == "__main__":
