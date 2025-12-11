@@ -86,9 +86,13 @@ class GameClient:
         
         self.running = True
         
-        # Start receive thread
+        # Start receive thread for game socket (game state updates)
         receive_thread = threading.Thread(target=self.receive_messages, daemon=True)
         receive_thread.start()
+        
+        # Start receive thread for control socket (pong responses)
+        control_thread = threading.Thread(target=self.receive_control_messages, daemon=True)
+        control_thread.start()
         
         # Start heartbeat thread (send ping every 2 seconds)
         heartbeat_thread = threading.Thread(target=self.send_heartbeat, daemon=True)
@@ -113,6 +117,28 @@ class GameClient:
             except Exception as e:
                 if self.running:
                     print(f"❌ Error receiving data: {e}")
+    
+    def receive_control_messages(self) -> None:
+        """Receive messages from server (pong responses on control socket)"""
+        while self.running:
+            try:
+                data, addr = self.control_socket.recvfrom(1024)
+                message = json.loads(data.decode('utf-8'))
+                message_type = message.get('type', '')
+                
+                if message_type == 'pong':
+                    # Heartbeat acknowledged
+                    self.last_update_time = time.time()
+                    print("✅ Received pong from server")
+                
+            except socket.timeout:
+                # Timeout is normal, continue
+                continue
+            except json.JSONDecodeError:
+                print("❌ Received invalid JSON on control socket")
+            except Exception as e:
+                if self.running:
+                    print(f"❌ Error receiving control data: {e}")
     
     def handle_server_message(self, message: Dict[str, Any]) -> None:
         """Handle messages from server"""
