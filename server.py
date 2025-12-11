@@ -119,7 +119,7 @@ class GameServer:
         
         # Create handlers
         file_handler = logging.FileHandler(os.path.join(log_dir, 'cloudsnake-server.log'))
-        file_handler.setLevel(logging.INFO)
+        file_handler.setLevel(logging.DEBUG)  # Changed to DEBUG to capture all debug messages
         
         error_handler = logging.FileHandler(os.path.join(log_dir, 'cloudsnake-server-errors.log'))
         error_handler.setLevel(logging.ERROR)
@@ -135,7 +135,7 @@ class GameServer:
         
         # Configure root logger
         logging.basicConfig(
-            level=logging.INFO,
+            level=logging.DEBUG,  # Changed to DEBUG to allow debug messages
             handlers=[file_handler, error_handler, console_handler]
         )
         
