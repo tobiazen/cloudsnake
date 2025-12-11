@@ -258,15 +258,11 @@ class GameServer:
             client_address = None
             try:
                 data, client_address = self.control_socket.recvfrom(1024)
-                self.logger.debug(f"Received {len(data)} bytes from {client_address}: {data[:100]}")
                 message = json.loads(data.decode('utf-8'))
-                self.logger.debug(f"Parsed message: {message}")
                 
                 # Handle control message types
                 message_type: str = message.get('type', '')
                 if message_type in ['connect', 'disconnect', 'ping']:
-                    if message_type == 'ping':
-                        self.logger.debug(f"Received ping from {client_address}")
                     self.handle_client_message(client_address, message)
                 else:
                     self.logger.warning(f"Unknown control message type '{message_type}' from {client_address}")
@@ -274,8 +270,6 @@ class GameServer:
             except json.JSONDecodeError as e:
                 addr_str = f"from {client_address}" if client_address else ""
                 self.logger.warning(f"Received invalid JSON on control socket {addr_str}: {e}")
-                if client_address:
-                    self.logger.debug(f"Raw data: {data}")
             except Exception as e:
                 self.logger.error(f"Error receiving control data: {e}", exc_info=True)
     
@@ -1084,7 +1078,6 @@ class GameServer:
             # Send pong response
             pong_msg: Dict[str, Any] = {'type': 'pong', 'timestamp': time.time()}
             self.send_to_client(client_address, pong_msg)
-            self.logger.debug(f"Sent pong to {self.clients[client_address]['player_name']} at {client_address}")
     
     def update_game_logic(self) -> None:
         """Update snake positions and check collisions"""
