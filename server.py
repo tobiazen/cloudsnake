@@ -263,6 +263,8 @@ class GameServer:
                 # Handle control message types
                 message_type: str = message.get('type', '')
                 if message_type in ['connect', 'disconnect', 'ping']:
+                    if message_type == 'ping':
+                        self.logger.debug(f"Received ping from {client_address}")
                     self.handle_client_message(client_address, message)
                 
             except json.JSONDecodeError as e:
@@ -1075,6 +1077,7 @@ class GameServer:
             # Send pong response
             pong_msg: Dict[str, Any] = {'type': 'pong', 'timestamp': time.time()}
             self.send_to_client(client_address, pong_msg)
+            self.logger.debug(f"Sent pong to {self.clients[client_address]['player_name']} at {client_address}")
     
     def update_game_logic(self) -> None:
         """Update snake positions and check collisions"""
