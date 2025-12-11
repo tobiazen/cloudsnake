@@ -340,7 +340,7 @@ class GameServer:
     def handle_client_message(self, client_address: Tuple[str, int], message: Dict[str, Any]) -> None:
         """Handle messages from clients"""
         message_type: str = message.get('type', '')
-        self.logger.debug(f"Handling message type '{message_type}' from {client_address}")
+        
         if message_type == 'connect':
             self.handle_connect(client_address, message)
         elif message_type == 'disconnect':
