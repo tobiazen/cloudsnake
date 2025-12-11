@@ -187,10 +187,6 @@ class GameServer:
         """Start the server"""
         self.running = True
         
-        # print(f"🎮 Game Server started on {self.host}:{self.port}")
-        # print(f"📡 Broadcasting game state at 2Hz (every {self.broadcast_interval}s)")
-        # print("Waiting for clients to connect...\n")
-        
         # Start broadcast thread
         broadcast_thread = threading.Thread(target=self.broadcast_game_state, daemon=True)
         broadcast_thread.start()
@@ -302,8 +298,6 @@ class GameServer:
             self.handle_start_game(client_address)
         elif message_type == 'leave_game':
             self.handle_leave_game(client_address)
-        else:
-            pass  # print(f"⚠️  Unknown message type: {message_type} from {client_address}")
     
     def get_safe_direction(self, x: int, y: int) -> str:
         """Get a safe initial direction that won't hit walls or other players within 2 steps"""
@@ -383,9 +377,6 @@ class GameServer:
             self.stats['players'][player_name]['last_seen'] = datetime.now().isoformat()
             self.save_stats()
             
-            # print(f"✅ Client connected to lobby: {player_name} from {client_address[0]}:{client_address[1]}")
-            # print(f"   Total clients: {len(self.clients)}\n")
-            
             # Send welcome message (no color yet)
             welcome_msg: Dict[str, Any] = {
                 'type': 'welcome',
@@ -398,7 +389,6 @@ class GameServer:
         else:
             # Client reconnecting
             self.clients[client_address]['last_seen'] = time.time()
-            # print(f"🔄 Client reconnected: {player_name} from {client_address[0]}:{client_address[1]}")
     
     def handle_disconnect(self, client_address: Tuple[str, int]) -> None:
         """Handle client disconnection"""
@@ -429,11 +419,6 @@ class GameServer:
             # Remove from game state
             if str(client_address) in self.game_state['players']:
                 del self.game_state['players'][str(client_address)]
-            
-            # print(f"❌ Client disconnected: {player_name} from {client_address[0]}:{client_address[1]}")
-            if player_color:
-                pass  # print(f"   Color RGB{player_color} is now available")
-            # print(f"   Total clients: {len(self.clients)}\n")
     
     def handle_player_update(self, client_address: Tuple[str, int], message: Dict[str, Any]) -> None:
         """Handle player state updates (direction changes, respawns)"""
@@ -484,7 +469,6 @@ class GameServer:
                 self.clients[client_address]['bombs'] = 0
                 # Add new occupied cell
                 self.occupied_cells.add(start_pos)
-                # print(f"🔄 {self.clients[client_address]['player_name']} respawned (score: {previous_score} → {new_score})")
             
             self.clients[client_address]['last_seen'] = time.time()
             
@@ -498,8 +482,6 @@ class GameServer:
         # Check if game is full (count players already in game)
         players_in_game = len([c for c in self.clients.values() if c.get('in_game', False)])
         if players_in_game >= self.max_players:
-            # print(f"⛔ Game full! Rejected start_game from {self.clients[client_address]['player_name']}")
-            
             # Send game full message via game socket (since start_game came via game socket)
             # Game address should already be registered by listen_game() before this handler is called
             full_msg: Dict[str, Any] = {
@@ -520,7 +502,6 @@ class GameServer:
         available = [c for c in self.available_colors if c not in self.used_colors]
         if not available:
             # No colors available (shouldn't happen if max_players <= len(available_colors))
-            # print(f"⚠️  No colors available for {self.clients[client_address]['player_name']}")
             return
         
         color = available[0]
@@ -553,9 +534,6 @@ class GameServer:
         self.stats['players'][self.clients[client_address]['player_name']]['games_played'] += 1
         self.stats['total_games'] += 1
         self.save_stats()
-        
-        # print(f"🎮 {self.clients[client_address]['player_name']} started game")
-        # print(f"   Assigned color: RGB{color}")
     
     def handle_leave_game(self, client_address: Tuple[str, int]) -> None:
         """Handle player leaving game (returning to lobby) - same as dying"""
@@ -582,9 +560,6 @@ class GameServer:
             old_set = self.clients[client_address].get('snake_set', set())
             self.occupied_cells.difference_update(old_set)
             old_set.clear()
-            
-            # Keep them connected but not playing
-            # print(f"👋 {self.clients[client_address]['player_name']} left game")
     
     def calculate_brick_count(self) -> int:
         """Calculate how many bricks should be active based on player count"""
@@ -629,7 +604,6 @@ class GameServer:
                     self.bricks_set.add(pos)
                 return True
         
-        # print(f"⚠️  Could not find empty space for brick")
         return False
     
     def update_bricks(self) -> None:
@@ -882,8 +856,6 @@ class GameServer:
                                 snake_set = client_data.get('snake_set', set())
                                 self.occupied_cells.difference_update(snake_set)
                                 snake_set.clear()
-                                
-                                # print(f"💀 {client_data['player_name']} was headshotted!")
                             else:
                                 # Truncate snake after hit position
                                 removed_segments = snake[hit_index:]
@@ -1071,7 +1043,6 @@ class GameServer:
                 client_data['bullets'] = 0
                 client_data['bombs'] = 0
                 self.update_player_stats(player_name, final_score, died=True)
-                # print(f"💀 {client_data['player_name']} hit a wall!")
                 continue
             
             # Check collision with own snake via set membership
@@ -1082,7 +1053,6 @@ class GameServer:
                 client_data['bullets'] = 0
                 client_data['bombs'] = 0
                 self.update_player_stats(player_name, final_score, died=True)
-                # print(f"💀 {client_data['player_name']} hit themselves!")
                 continue
             
             # Check collision with other players' snakes using global occupied cells
@@ -1098,7 +1068,6 @@ class GameServer:
                 snake_set = client_data.get('snake_set', set())
                 self.occupied_cells.difference_update(snake_set)
                 snake_set.clear()
-                # print(f"💀 {client_data['player_name']} hit another snake!")
                 continue
             
             # Add new head
@@ -1229,7 +1198,6 @@ class GameServer:
                         inactive.append(client_address)
                 
                 for client_address in inactive:
-                    # print(f"⏱️  Client timeout: {client_address}")
                     self.handle_disconnect(client_address)
             
             time.sleep(self.broadcast_interval)
@@ -1253,19 +1221,13 @@ class GameServer:
         self.running = False
         self.control_socket.close()
         self.game_socket.close()
-        # print("\n🛑 Server stopped")
 
 def main():
-    # print("="*60)
-    # print("🎮 GAME SERVER")
-    # print("="*60)
-    
     server = GameServer()
     
     try:
         server.start()
     except KeyboardInterrupt:
-        # print("\n\n⚠️  Shutting down server...")
         server.stop()
     except Exception as e:
         print(f"\n❌ Server error: {e}")
