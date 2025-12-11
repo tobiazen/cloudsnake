@@ -64,7 +64,6 @@ class GameClient:
                 
                 # Send initial message on game socket to register game address with server
                 # This ensures we receive game state broadcasts even while in lobby
-                print("🔧 DEBUG: Sending lobby_ping to register game socket")
                 lobby_msg = {
                     'type': 'lobby_ping',
                     'player_id': str(self.player_id)
@@ -104,29 +103,23 @@ class GameClient:
     
     def receive_control_messages(self) -> None:
         """Receive messages from server (pong responses on control socket)"""
-        print("🔧 DEBUG: receive_control_messages thread STARTED")
         while self.running:
             try:
                 data, addr = self.control_socket.recvfrom(1024)
-                print(f"🔧 DEBUG: Received {len(data)} bytes on control socket")
                 message = json.loads(data.decode('utf-8'))
                 message_type = message.get('type', '')
-                print(f"🔧 DEBUG: Control message type: {message_type}")
                 
                 if message_type == 'pong':
                     # Heartbeat acknowledged
                     self.last_update_time = time.time()
-                    print("✅ Received pong from server")
                 
             except socket.timeout:
                 # Timeout is normal, continue
                 continue
-            except json.JSONDecodeError as e:
-                print(f"❌ Received invalid JSON on control socket: {e}")
-            except Exception as e:
-                if self.running:
-                    print(f"❌ Error receiving control data: {e}")
-        print("🔧 DEBUG: receive_control_messages thread STOPPED")
+            except json.JSONDecodeError:
+                pass
+            except Exception:
+                pass
     
     def handle_server_message(self, message: Dict[str, Any]) -> None:
         """Handle messages from server"""
@@ -138,7 +131,6 @@ class GameClient:
         if message_type == 'game_state':
             self.game_state = message.get('state')
             self.display_game_state()
-            print(f"✅ Game state updated: {message.get('message_count')}")
             
             # Update my_color from game state if player is in game
             if self.player_id and self.game_state:
@@ -184,11 +176,10 @@ class GameClient:
         while self.running:
             if self.connected:
                 ping_msg: Dict[str, str] = {'type': 'ping'}
-                print("🔄 Sending heartbeat ping to server...")
                 try:
                     self.send_to_server(ping_msg)
-                except Exception as e:
-                    print(f"❌ Error sending heartbeat: {e}")
+                except Exception:
+                    pass
             
             time.sleep(2.0)
     
@@ -198,7 +189,6 @@ class GameClient:
             'type': 'update',
             'data': self.player_data
         }
-        print("➡️  Sending player update to server...")
         self.send_to_server(update_msg, use_game_socket=True)
     
     def shoot(self) -> None:
@@ -206,7 +196,6 @@ class GameClient:
         shoot_msg: Dict[str, str] = {
             'type': 'shoot'
         }
-        print("➡️  Sending shoot request to server...")
         self.send_to_server(shoot_msg, use_game_socket=True)
     
     def throw_bomb(self) -> None:
@@ -214,7 +203,6 @@ class GameClient:
         throw_bomb_msg: Dict[str, str] = {
             'type': 'throw_bomb'
         }
-        print("➡️  Sending throw bomb request to server...")
         self.send_to_server(throw_bomb_msg, use_game_socket=True)
     
     def respawn(self) -> None:
@@ -261,5 +249,4 @@ class GameClient:
         if self.connected:
             time_since_update = time.time() - self.last_update_time
             if time_since_update > self.update_timeout:
-                print(f"⚠️  Connection timeout: No updates for {time_since_update:.1f}s")
                 self.connected = False

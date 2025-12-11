@@ -885,7 +885,6 @@ class GameGUI:
             if new_direction:
                 # Send to server, but don't update local direction until server confirms
                 # This prevents rapid key presses from causing illegal 180-degree turns
-                print(f"Requesting direction change to {new_direction}")
                 self.client.send_to_server({
                     'type': 'update',
                     'data': {'direction': new_direction}
