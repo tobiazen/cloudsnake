@@ -129,6 +129,7 @@ class GameClient:
         self.last_update_time = time.time()
         
         if message_type == 'game_state':
+            print("🕹️  Received game state update")
             self.game_state = message.get('state')
             self.display_game_state()
             

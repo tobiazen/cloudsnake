@@ -1183,6 +1183,7 @@ class GameServer:
         """Broadcast game state to all connected clients at 2Hz"""
         while self.running:
             if self.clients:
+                self.logger.debug(f"Broadcasting to {len(self.clients)} clients")
                 # Rebuild occupied_cells from alive players in game once per tick (safety sync)
                 occ: Set[Tuple[int, int]] = set()
                 for _addr, data in self.clients.items():
@@ -1250,6 +1251,7 @@ class GameServer:
 
                 # Send to all connected clients using game socket
                 disconnected: List[Tuple[str, int]] = []
+                sent_count = 0
                 for client_address in self.clients:
                     try:
                         # Use the game socket address for this control address
@@ -1258,9 +1260,10 @@ class GameServer:
                         if game_address:
                             # Send to the registered game socket address
                             self.send_to_client(game_address, broadcast_msg, use_game_socket=True)
+                            sent_count += 1
                         else:
                             # Client hasn't sent any game messages yet, skip
-                            pass
+                            self.logger.debug(f"No game address for {client_address}")
                     except Exception as e:
                         self.logger.error(f"Error sending to {client_address}: {e}")
                         disconnected.append(client_address)
@@ -1268,6 +1271,8 @@ class GameServer:
                 # Remove disconnected clients
                 for client_address in disconnected:
                     self.handle_disconnect(client_address)
+                
+                self.logger.debug(f"Sent game state to {sent_count} clients")
                 
                 # Check for inactive clients (timeout after 10 seconds)
                 current_time: float = time.time()
