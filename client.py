@@ -956,9 +956,8 @@ class GameGUI:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        self.running = False
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    self.running = False
                 
                 # State-specific event handling
                 if self.state == 'connection':
@@ -966,16 +965,13 @@ class GameGUI:
                 elif self.state == 'game':
                     self.handle_game_events(event)
             
-            # Update game logic
-            if self.state == 'game':
-                self.update_snake_game()
-            
-            # Draw appropriate screen
+            # State-specific updates and rendering
             if self.state == 'connection':
                 self.draw_connection_screen()
             elif self.state == 'connecting':
                 self.draw_connecting_screen()
             elif self.state == 'game':
+                self.update_snake_game()
                 self.draw_game_screen()
             
             # Update display

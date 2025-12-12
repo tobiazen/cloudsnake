@@ -7,9 +7,9 @@
     "last_player_name": "Tobias",
     "server_ip": "localhost",
     "server_addresses": [
-        "localhost",
         "129.151.219.36",
+        "localhost",
         "192.168.1.100"
     ],
-    "last_server_address": "localhost"
+    "last_server_address": "129.151.219.36"
 }
