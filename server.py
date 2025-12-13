@@ -1218,6 +1218,12 @@ class GameServer:
                     direction_str = client_data.get('direction', 'RIGHT')
                     direction_int = DIRECTION_TO_INT.get(direction_str, 3)  # Default to RIGHT
                     
+                    # Convert color from [R,G,B] to hex int for network efficiency
+                    color = client_data.get('color')
+                    color_int = None
+                    if color and len(color) == 3:
+                        color_int = (color[0] << 16) | (color[1] << 8) | color[2]  # RGB to 0xRRGGBB
+                    
                     # Build a filtered dict (exclude snake_set)
                     filtered: PlayerData = {
                         'player_name': client_data.get('player_name'),
@@ -1227,7 +1233,7 @@ class GameServer:
                         'direction': direction_int,  # Send as int instead of string
                         'score': client_data.get('score'),
                         'alive': client_data.get('alive'),
-                        'color': client_data.get('color'),
+                        'color': color_int,  # Send as hex int instead of [R,G,B] array
                         'bullets': client_data.get('bullets', 0),
                         'bombs': client_data.get('bombs', 0),
                         'in_game': client_data.get('in_game', False)

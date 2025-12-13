@@ -238,6 +238,13 @@ class PlayerInfo:
         # Handle None color (player in lobby)
         if color is None:
             return (255, 255, 255)  # Default white
+        # Handle hex int color (from optimized network protocol)
+        if isinstance(color, int):
+            r = (color >> 16) & 0xFF
+            g = (color >> 8) & 0xFF
+            b = color & 0xFF
+            return (r, g, b)
+        # Handle array/list color [R, G, B]
         return tuple(color)
     
     @property
