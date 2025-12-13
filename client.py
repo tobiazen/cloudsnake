@@ -179,11 +179,9 @@ class GameGUI:
         if not self.client or not self.game_state_manager.is_valid:
             return
         
-        # Check if current player is in game
-        my_in_game = self.game_state_manager.is_player_in_game(self.client.player_id) if self.client.player_id else False
-        
-        # Show lobby message if not in game
-        if not my_in_game:
+        # Show lobby message if not in game (use self.in_game flag, not game_state)
+        # Note: in_game field is no longer sent in game_state updates (optimization)
+        if not self.in_game:
             lobby_text = self.title_font.render("LOBBY", True, CYAN)
             lobby_rect = lobby_text.get_rect(center=(self.game_offset_x + self.game_area_width // 2,
                                                      self.game_offset_y + self.game_area_height // 2 - 50))
@@ -197,8 +195,9 @@ class GameGUI:
         for player_id, player_data in self.game_state_manager.get_players().items():
             player = PlayerInfo(player_id, player_data, self.game_state_manager)
             
-            # Don't draw snakes for players not in game
-            if not player.in_game or not player.snake or not player.is_alive:
+            # Don't draw snakes for dead players or players without snakes
+            # Note: All players in game_state are in-game (server only sends to in_game players)
+            if not player.snake or not player.is_alive:
                 continue
             
             # Use colors from player info
@@ -365,9 +364,9 @@ class GameGUI:
         show_respawn = False
         if self.client and self.game_state_manager.is_valid and self.client.player_id:
             # Only show respawn if player is in game, dead, and didn't leave voluntarily
-            is_in_game = self.game_state_manager.is_player_in_game(self.client.player_id)
+            # Note: Use self.in_game since in_game field is no longer in game_state (optimization)
             is_alive = self.game_state_manager.is_player_alive(self.client.player_id)
-            if is_in_game and not is_alive and not self.left_voluntarily:
+            if self.in_game and not is_alive and not self.left_voluntarily:
                 show_respawn = True
         
         if show_respawn:
@@ -732,15 +731,10 @@ class GameGUI:
         self.screen.blit(info_text, info_rect)
         
         # Show who else is in the lobby
-        if self.client and self.game_state_manager.is_valid:
-            # Count players not in game (need to use the helper function for short keys)
-            lobby_players = [player_id for player_id, data in self.game_state_manager.get_players().items() 
-                           if not self.game_state_manager.is_player_in_game(player_id)]
-            if len(lobby_players) > 1:
-                waiting_text = self.small_font.render(f"{len(lobby_players)} players in lobby", True, GRAY)
-                waiting_rect = waiting_text.get_rect(center=(self.game_offset_x + self.game_area_width // 2,
-                                                            self.game_offset_y + self.game_area_height // 2 + 60))
-                self.screen.blit(waiting_text, waiting_rect)
+        # Note: Server only sends game_state to in-game players, so we can't count lobby players from game_state
+        # This feature is disabled for now - would need separate lobby player list from server
+        # if self.client and self.game_state_manager.is_valid:
+        #     pass
         
         # Controls info below game area
         game_area_bottom = self.game_offset_y + self.game_area_height
@@ -929,21 +923,20 @@ class GameGUI:
         
         # Check if player is dead
         is_dead = False
-        is_in_game = False
         if self.client and self.client.player_id:
             self.update_game_state()
             is_dead = not self.game_state_manager.is_player_alive(self.client.player_id)
-            is_in_game = self.game_state_manager.is_player_in_game(self.client.player_id)
         
         # Handle respawn button if dead and in game
-        if is_dead and is_in_game:
+        # Note: Use self.in_game since in_game field is no longer in game_state (optimization)
+        if is_dead and self.in_game:
             if self.respawn_button.handle_event(event):
                 self.client.respawn()
                 self.left_voluntarily = False  # Reset flag after respawn
                 return
         
         # Handle keyboard input for snake direction (only if alive and in game)
-        if event.type == pygame.KEYDOWN and not is_dead and is_in_game:
+        if event.type == pygame.KEYDOWN and not is_dead and self.in_game:
             current_direction = self.client.player_data['direction']
             new_direction = None
             
