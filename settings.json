@@ -1,6 +1,8 @@
 {
-    "player_names": [],
-    "last_player_name": "",
+    "player_names": [
+        "Tobias"
+    ],
+    "last_player_name": "Tobias",
     "server_ip": "129.151.219.36",
     "server_addresses": [
         "129.151.219.36"

@@ -847,6 +847,11 @@ class GameGUI:
         if not self.client:
             return
         
+        # If showing statistics, handle those events instead
+        if self.show_statistics:
+            self.handle_statistics_events(event)
+            return
+        
         # Handle menu button click
         if hasattr(self, 'menu_button') and self.menu_button.handle_event(event):
             self.game_menu_open = not self.game_menu_open
