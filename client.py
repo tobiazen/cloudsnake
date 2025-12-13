@@ -364,8 +364,10 @@ class GameGUI:
         # Check if current player is dead and show respawn button
         show_respawn = False
         if self.client and self.game_state_manager.is_valid and self.client.player_id:
-            # Only show respawn if dead and didn't leave voluntarily
-            if not self.game_state_manager.is_player_alive(self.client.player_id) and not self.left_voluntarily:
+            # Only show respawn if player is in game, dead, and didn't leave voluntarily
+            is_in_game = self.game_state_manager.is_player_in_game(self.client.player_id)
+            is_alive = self.game_state_manager.is_player_alive(self.client.player_id)
+            if is_in_game and not is_alive and not self.left_voluntarily:
                 show_respawn = True
         
         if show_respawn:
