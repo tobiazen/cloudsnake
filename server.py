@@ -232,10 +232,15 @@ class GameServer:
         self.logger.info(f"Game socket listening on port {self.game_port}")
         self.logger.info(f"Max players: {self.max_players}")
         
-        # Start broadcast thread
+        # Start broadcast thread (game state at 2Hz)
         broadcast_thread = threading.Thread(target=self.broadcast_game_state, daemon=True)
         broadcast_thread.start()
         self.logger.info("Broadcast thread started")
+        
+        # Start leaderboard broadcast thread (slower updates at 0.2Hz / every 5 seconds)
+        leaderboard_thread = threading.Thread(target=self.broadcast_leaderboard, daemon=True)
+        leaderboard_thread.start()
+        self.logger.info("Leaderboard broadcast thread started")
         
         # Start listening threads for both sockets
         control_thread = threading.Thread(target=self.listen_control, daemon=True)
@@ -1249,10 +1254,7 @@ class GameServer:
                 self.game_state['bombs'] = self.bombs.copy()
                 self.game_state['explosions'] = self.explosions.copy()
                 
-                # Add leaderboard to game state
-                self.game_state['leaderboard'] = self.get_top_players(10)
-                self.game_state['all_time_highscore'] = self.stats['all_time_highscore']
-                self.game_state['all_time_highscore_player'] = self.stats['all_time_highscore_player']
+                # Leaderboard is now broadcast separately at a slower rate
                 
                 # Prepare broadcast message
                 broadcast_msg: Dict[str, Any] = {
@@ -1302,6 +1304,35 @@ class GameServer:
                     self.handle_disconnect(client_address)
             
             time.sleep(self.broadcast_interval)
+    
+    def broadcast_leaderboard(self) -> None:
+        """Broadcast leaderboard separately at slower rate (0.2Hz / every 5 seconds)"""
+        leaderboard_interval = 5.0  # 5 seconds between leaderboard updates
+        
+        while self.running:
+            if self.clients:
+                # Prepare leaderboard message
+                leaderboard_msg: Dict[str, Any] = {
+                    'type': 'leaderboard',
+                    'leaderboard': self.get_top_players(10),
+                    'all_time_highscore': self.stats['all_time_highscore'],
+                    'all_time_highscore_player': self.stats['all_time_highscore_player']
+                }
+                
+                # Send to all clients (both in-game and lobby)
+                for client_address, client_data in self.clients.items():
+                    try:
+                        # Use game socket address if available, otherwise control socket
+                        game_address = self.game_addresses.get(client_address)
+                        if game_address:
+                            self.send_to_client(game_address, leaderboard_msg, use_game_socket=True)
+                        else:
+                            # Client hasn't registered game address yet, use control socket
+                            self.send_to_client(client_address, leaderboard_msg, use_game_socket=False)
+                    except Exception as e:
+                        self.logger.error(f"Error sending leaderboard to {client_address}: {e}")
+            
+            time.sleep(leaderboard_interval)
     
     def send_to_client(self, client_address: Tuple[str, int], message: Dict[str, Any], use_game_socket: bool = False) -> None:
         """Send message to specific client

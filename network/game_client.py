@@ -152,6 +152,12 @@ class GameClient:
                             self.my_color = (r, g, b)
                         else:
                             self.my_color = tuple(color)
+        elif message_type == 'leaderboard':
+            # Leaderboard update (sent separately at slower rate)
+            if self.game_state:
+                self.game_state['leaderboard'] = message.get('leaderboard', [])
+                self.game_state['all_time_highscore'] = message.get('all_time_highscore', 0)
+                self.game_state['all_time_highscore_player'] = message.get('all_time_highscore_player', 'None')
         elif message_type == 'pong':
             # Heartbeat acknowledged
             pass
