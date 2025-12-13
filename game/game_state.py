@@ -49,6 +49,8 @@ class GameStateManager:
             game_state: The raw game state dictionary from the server
         """
         self._game_state = game_state or {}
+        # Cache for reconstructed snakes (to handle delta encoding)
+        self._snake_cache: Dict[str, List[Tuple[int, int]]] = {}
     
     def update(self, game_state: Optional[Dict[str, Any]]) -> None:
         """
@@ -94,13 +96,48 @@ class GameStateManager:
     def get_player_snake(self, player_id: str) -> List[Tuple[int, int]]:
         """
         Get a player's snake segments.
+        Handles delta encoding: if snake is [head, length], reconstructs from cache.
         
         Returns:
             List of (x, y) tuples representing snake segments
         """
-        snake = _get_key(self.get_player_data(player_id), 'snake', [])
-        # Convert to tuples if they're lists
-        return [tuple(seg) if isinstance(seg, list) else seg for seg in snake]
+        snake_data = _get_key(self.get_player_data(player_id), 'snake', [])
+        
+        if not snake_data:
+            return []
+        
+        # Check if this is delta-encoded (new format: [head_pos, length])
+        if len(snake_data) == 2 and isinstance(snake_data[1], int):
+            # Delta encoding: [head_position, length]
+            head_pos = tuple(snake_data[0]) if isinstance(snake_data[0], list) else snake_data[0]
+            target_length = snake_data[1]
+            
+            # Get cached snake for this player
+            cached_snake = self._snake_cache.get(player_id, [])
+            
+            # Reconstruct snake: add new head, keep length segments
+            if cached_snake and len(cached_snake) > 0:
+                # Check if head moved (not the same position)
+                if not cached_snake or cached_snake[0] != head_pos:
+                    # Head moved, reconstruct: new head + old segments (up to length-1)
+                    new_snake = [head_pos] + cached_snake[:target_length-1]
+                else:
+                    # Head didn't move (shouldn't happen), use cached
+                    new_snake = cached_snake[:target_length]
+            else:
+                # No cache, create snake at head position
+                new_snake = [head_pos] * target_length
+            
+            # Update cache
+            self._snake_cache[player_id] = new_snake
+            return new_snake
+        else:
+            # Full snake data (old format or initial sync)
+            # Convert to tuples if they're lists
+            full_snake = [tuple(seg) if isinstance(seg, list) else seg for seg in snake_data]
+            # Update cache with full data
+            self._snake_cache[player_id] = full_snake
+            return full_snake
     
     def get_player_color(self, player_id: str) -> Tuple[int, int, int]:
         """Get a player's color as RGB tuple."""
@@ -230,16 +267,18 @@ class PlayerInfo:
     without repeated dictionary lookups.
     """
     
-    def __init__(self, player_id: str, player_data: Dict[str, Any]):
+    def __init__(self, player_id: str, player_data: Dict[str, Any], game_state_manager: Optional['GameStateManager'] = None):
         """
         Initialize player info.
         
         Args:
             player_id: The player's unique ID
             player_data: The player's data dictionary
+            game_state_manager: Optional reference to GameStateManager for snake reconstruction
         """
         self.player_id = player_id
         self._data = player_data
+        self._game_state_manager = game_state_manager
     
     @property
     def name(self) -> str:
@@ -254,6 +293,10 @@ class PlayerInfo:
     @property
     def snake(self) -> List[Tuple[int, int]]:
         """Player's snake segments as list of (x, y) tuples."""
+        # Use game state manager for proper snake reconstruction if available
+        if self._game_state_manager:
+            return self._game_state_manager.get_player_snake(self.player_id)
+        # Fallback: direct access (won't handle delta encoding)
         snake = _get_key(self._data, 'snake', [])
         return [tuple(seg) if isinstance(seg, list) else seg for seg in snake]
     

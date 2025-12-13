@@ -1255,12 +1255,22 @@ class GameServer:
                     if color and len(color) == 3:
                         color_int = (color[0] << 16) | (color[1] << 8) | color[2]  # RGB to 0xRRGGBB
                     
+                    # Optimize snake transmission: send head + length instead of all segments
+                    # This reduces a 50-segment snake from ~400 bytes to ~16 bytes
+                    snake = client_data.get('snake', [])
+                    if snake:
+                        # Send only head position and length
+                        # Client reconstructs snake based on direction and previous state
+                        snake_data = [snake[0], len(snake)]  # [head_position, length]
+                    else:
+                        snake_data = []
+                    
                     # Build a filtered dict (exclude snake_set) with short keys for network efficiency
                     filtered: PlayerData = {
                         'n': client_data.get('player_name'),      # name
                         'ca': client_data.get('connected_at'),    # connected_at
                         'ls': client_data.get('last_seen'),       # last_seen
-                        's': client_data.get('snake'),            # snake (list of positions)
+                        's': snake_data,                          # snake (head + length only)
                         'd': direction_int,                        # direction (int)
                         'sc': client_data.get('score'),           # score
                         'a': client_data.get('alive'),            # alive

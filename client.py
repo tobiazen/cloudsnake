@@ -195,7 +195,7 @@ class GameGUI:
             self.screen.blit(info_text, info_rect)
         
         for player_id, player_data in self.game_state_manager.get_players().items():
-            player = PlayerInfo(player_id, player_data)
+            player = PlayerInfo(player_id, player_data, self.game_state_manager)
             
             # Don't draw snakes for players not in game
             if not player.in_game or not player.snake or not player.is_alive:
@@ -411,7 +411,7 @@ class GameGUI:
             
             # Get sorted players
             for player_id, player_data in self.game_state_manager.get_sorted_players(limit=15):
-                player = PlayerInfo(player_id, player_data)
+                player = PlayerInfo(player_id, player_data, self.game_state_manager)
                 
                 # Draw individual panel for each player (with padding from edges)
                 player_panel_height = 58
