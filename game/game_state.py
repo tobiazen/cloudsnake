@@ -6,6 +6,32 @@ It provides a clean interface for accessing player data, game objects, and other
 """
 from typing import Dict, List, Tuple, Optional, Any
 
+# Key mappings for optimized network protocol (short keys)
+# Maps long key names to short keys used in network transmission
+KEY_MAP = {
+    'player_name': 'n',
+    'connected_at': 'ca',
+    'last_seen': 'ls',
+    'snake': 's',
+    'direction': 'd',
+    'score': 'sc',
+    'alive': 'a',
+    'color': 'c',
+    'bullets': 'bu',
+    'bombs': 'bo',
+    'in_game': 'ig'
+}
+
+
+def _get_key(data: Dict[str, Any], long_key: str, default: Any = None) -> Any:
+    """
+    Get value from data dict using either long or short key name.
+    Tries short key first (for optimized protocol), falls back to long key.
+    """
+    short_key = KEY_MAP.get(long_key, long_key)
+    # Try short key first, then long key, then default
+    return data.get(short_key, data.get(long_key, default))
+
 
 class GameStateManager:
     """
@@ -59,11 +85,11 @@ class GameStateManager:
     
     def get_player_name(self, player_id: str) -> str:
         """Get a player's name."""
-        return self.get_player_data(player_id).get('player_name', 'Unknown')
+        return _get_key(self.get_player_data(player_id), 'player_name', 'Unknown')
     
     def get_player_score(self, player_id: str) -> int:
         """Get a player's score."""
-        return self.get_player_data(player_id).get('score', 0)
+        return _get_key(self.get_player_data(player_id), 'score', 0)
     
     def get_player_snake(self, player_id: str) -> List[Tuple[int, int]]:
         """
@@ -72,13 +98,13 @@ class GameStateManager:
         Returns:
             List of (x, y) tuples representing snake segments
         """
-        snake = self.get_player_data(player_id).get('snake', [])
+        snake = _get_key(self.get_player_data(player_id), 'snake', [])
         # Convert to tuples if they're lists
         return [tuple(seg) if isinstance(seg, list) else seg for seg in snake]
     
     def get_player_color(self, player_id: str) -> Tuple[int, int, int]:
         """Get a player's color as RGB tuple."""
-        color = self.get_player_data(player_id).get('color', (255, 255, 255))
+        color = _get_key(self.get_player_data(player_id), 'color', (255, 255, 255))
         # Handle None color (player in lobby)
         if color is None:
             return (255, 255, 255)  # Default white
@@ -86,19 +112,19 @@ class GameStateManager:
     
     def get_player_bullets(self, player_id: str) -> int:
         """Get number of bullets a player has."""
-        return self.get_player_data(player_id).get('bullets', 0)
+        return _get_key(self.get_player_data(player_id), 'bullets', 0)
     
     def get_player_bombs(self, player_id: str) -> int:
         """Get number of bombs a player has."""
-        return self.get_player_data(player_id).get('bombs', 0)
+        return _get_key(self.get_player_data(player_id), 'bombs', 0)
     
     def is_player_alive(self, player_id: str) -> bool:
         """Check if a player is alive."""
-        return self.get_player_data(player_id).get('alive', True)
+        return _get_key(self.get_player_data(player_id), 'alive', True)
     
     def is_player_in_game(self, player_id: str) -> bool:
         """Check if a player is actively in the game (not in lobby)."""
-        return self.get_player_data(player_id).get('in_game', False)
+        return _get_key(self.get_player_data(player_id), 'in_game', False)
     
     def get_sorted_players(self, limit: Optional[int] = None) -> List[Tuple[str, Dict[str, Any]]]:
         """
@@ -113,7 +139,7 @@ class GameStateManager:
         players = self.get_players()
         sorted_players = sorted(
             players.items(),
-            key=lambda x: x[1].get('score', 0),
+            key=lambda x: _get_key(x[1], 'score', 0),
             reverse=True
         )
         
@@ -218,23 +244,23 @@ class PlayerInfo:
     @property
     def name(self) -> str:
         """Player's name."""
-        return self._data.get('player_name', 'Unknown')
+        return _get_key(self._data, 'player_name', 'Unknown')
     
     @property
     def score(self) -> int:
         """Player's score."""
-        return self._data.get('score', 0)
+        return _get_key(self._data, 'score', 0)
     
     @property
     def snake(self) -> List[Tuple[int, int]]:
         """Player's snake segments as list of (x, y) tuples."""
-        snake = self._data.get('snake', [])
+        snake = _get_key(self._data, 'snake', [])
         return [tuple(seg) if isinstance(seg, list) else seg for seg in snake]
     
     @property
     def color(self) -> Tuple[int, int, int]:
         """Player's color as RGB tuple."""
-        color = self._data.get('color', (255, 255, 255))
+        color = _get_key(self._data, 'color', (255, 255, 255))
         # Handle None color (player in lobby)
         if color is None:
             return (255, 255, 255)  # Default white
@@ -250,22 +276,22 @@ class PlayerInfo:
     @property
     def bullets(self) -> int:
         """Number of bullets the player has."""
-        return self._data.get('bullets', 0)
+        return _get_key(self._data, 'bullets', 0)
     
     @property
     def bombs(self) -> int:
         """Number of bombs the player has."""
-        return self._data.get('bombs', 0)
+        return _get_key(self._data, 'bombs', 0)
     
     @property
     def is_alive(self) -> bool:
         """Whether the player is alive."""
-        return self._data.get('alive', True)
+        return _get_key(self._data, 'alive', True)
     
     @property
     def in_game(self) -> bool:
         """Whether the player is actively in the game (not in lobby)."""
-        return self._data.get('in_game', False)
+        return _get_key(self._data, 'in_game', False)
     
     @property
     def head_position(self) -> Optional[Tuple[int, int]]:

@@ -1224,19 +1224,19 @@ class GameServer:
                     if color and len(color) == 3:
                         color_int = (color[0] << 16) | (color[1] << 8) | color[2]  # RGB to 0xRRGGBB
                     
-                    # Build a filtered dict (exclude snake_set)
+                    # Build a filtered dict (exclude snake_set) with short keys for network efficiency
                     filtered: PlayerData = {
-                        'player_name': client_data.get('player_name'),
-                        'connected_at': client_data.get('connected_at'),
-                        'last_seen': client_data.get('last_seen'),
-                        'snake': client_data.get('snake'),  # list of tuple positions OK (tuples JSON → lists)
-                        'direction': direction_int,  # Send as int instead of string
-                        'score': client_data.get('score'),
-                        'alive': client_data.get('alive'),
-                        'color': color_int,  # Send as hex int instead of [R,G,B] array
-                        'bullets': client_data.get('bullets', 0),
-                        'bombs': client_data.get('bombs', 0),
-                        'in_game': client_data.get('in_game', False)
+                        'n': client_data.get('player_name'),      # name
+                        'ca': client_data.get('connected_at'),    # connected_at
+                        'ls': client_data.get('last_seen'),       # last_seen
+                        's': client_data.get('snake'),            # snake (list of positions)
+                        'd': direction_int,                        # direction (int)
+                        'sc': client_data.get('score'),           # score
+                        'a': client_data.get('alive'),            # alive
+                        'c': color_int,                           # color (hex int)
+                        'bu': client_data.get('bullets', 0),      # bullets
+                        'bo': client_data.get('bombs', 0),        # bombs
+                        'ig': client_data.get('in_game', False)   # in_game
                     }
                     players_snapshot[str(client_address)] = filtered
                 self.game_state['players'] = players_snapshot

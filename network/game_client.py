@@ -140,8 +140,18 @@ class GameClient:
                 players = self.game_state.get('players', {})
                 if self.player_id in players:
                     player_data = players[self.player_id]
-                    if player_data.get('in_game') and player_data.get('color'):
-                        self.my_color = tuple(player_data['color'])
+                    # Try short keys first ('ig', 'c'), fallback to long keys
+                    in_game = player_data.get('ig', player_data.get('in_game'))
+                    color = player_data.get('c', player_data.get('color'))
+                    if in_game and color:
+                        # Handle hex int color
+                        if isinstance(color, int):
+                            r = (color >> 16) & 0xFF
+                            g = (color >> 8) & 0xFF
+                            b = color & 0xFF
+                            self.my_color = (r, g, b)
+                        else:
+                            self.my_color = tuple(color)
         elif message_type == 'pong':
             # Heartbeat acknowledged
             pass
@@ -170,7 +180,8 @@ class GameClient:
         
         # Update local direction from server's authoritative state
         if self.player_id and self.player_id in players:
-            server_direction = players[self.player_id].get('direction')
+            # Try short key 'd' first, fallback to long key 'direction'
+            server_direction = players[self.player_id].get('d', players[self.player_id].get('direction'))
             if server_direction is not None:
                 # Convert int direction to string if needed
                 if isinstance(server_direction, int):
