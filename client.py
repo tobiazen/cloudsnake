@@ -733,8 +733,9 @@ class GameGUI:
         
         # Show who else is in the lobby
         if self.client and self.game_state_manager.is_valid:
-            lobby_players = [name for _, data in self.game_state_manager.get_players().items() 
-                           if not data.get('in_game', False)]
+            # Count players not in game (need to use the helper function for short keys)
+            lobby_players = [player_id for player_id, data in self.game_state_manager.get_players().items() 
+                           if not self.game_state_manager.is_player_in_game(player_id)]
             if len(lobby_players) > 1:
                 waiting_text = self.small_font.render(f"{len(lobby_players)} players in lobby", True, GRAY)
                 waiting_rect = waiting_text.get_rect(center=(self.game_offset_x + self.game_area_width // 2,
