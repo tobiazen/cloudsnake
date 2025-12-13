@@ -149,6 +149,11 @@ class GameClient:
                 if message_type == 'pong':
                     # Heartbeat acknowledged
                     self.last_update_time = time.time()
+                elif message_type == 'player_metadata':
+                    # Cache player metadata (name, color) for optimization
+                    # This is sent separately from game_state to reduce bandwidth
+                    if hasattr(self, 'on_player_metadata'):
+                        self.on_player_metadata(message)
                 
             except socket.timeout:
                 # Timeout is normal, continue

@@ -8,6 +8,9 @@ from typing import Dict, List, Tuple, Optional, Any
 
 # Key mappings for optimized network protocol (short keys)
 # Maps long key names to short keys used in network transmission
+# NOTE: As of latest optimization, game_state broadcasts only send dynamic data:
+#   s, d, sc, a, bu, bo (snake, direction, score, alive, bullets, bombs)
+# Static data (n=name, c=color) is sent once via metadata updates
 KEY_MAP = {
     'player_name': 'n',
     'connected_at': 'ca',
@@ -51,6 +54,8 @@ class GameStateManager:
         self._game_state = game_state or {}
         # Cache for reconstructed snakes (to handle delta encoding)
         self._snake_cache: Dict[str, List[Tuple[int, int]]] = {}
+        # Cache for player metadata (name, color) - sent separately from game_state
+        self._player_metadata: Dict[str, Dict[str, Any]] = {}
     
     def update(self, game_state: Optional[Dict[str, Any]]) -> None:
         """
@@ -60,6 +65,18 @@ class GameStateManager:
             game_state: New game state dictionary from server
         """
         self._game_state = game_state or {}
+    
+    def update_player_metadata(self, player_id: str, name: str, color: int) -> None:
+        """
+        Update cached player metadata (name, color).
+        Called when receiving 'player_metadata' messages from server.
+        
+        Args:
+            player_id: The player's unique ID
+            name: The player's name
+            color: The player's color as hex int (0xRRGGBB)
+        """
+        self._player_metadata[player_id] = {'n': name, 'c': color}
     
     @property
     def is_valid(self) -> bool:
@@ -86,7 +103,11 @@ class GameStateManager:
         return players.get(player_id, {})
     
     def get_player_name(self, player_id: str) -> str:
-        """Get a player's name."""
+        """Get a player's name (from metadata cache or player data)."""
+        # Check metadata cache first (optimization - name not sent in game_state updates)
+        if player_id in self._player_metadata:
+            return self._player_metadata[player_id].get('n', 'Unknown')
+        # Fallback to player data (for backward compatibility)
         return _get_key(self.get_player_data(player_id), 'player_name', 'Unknown')
     
     def get_player_score(self, player_id: str) -> int:
@@ -140,11 +161,27 @@ class GameStateManager:
             return full_snake
     
     def get_player_color(self, player_id: str) -> Tuple[int, int, int]:
-        """Get a player's color as RGB tuple."""
+        """Get a player's color as RGB tuple (from metadata cache or player data)."""
+        # Check metadata cache first (optimization - color not sent in game_state updates)
+        if player_id in self._player_metadata:
+            color_int = self._player_metadata[player_id].get('c')
+            if color_int is not None:
+                # Convert hex int back to RGB tuple: 0xRRGGBB -> (R, G, B)
+                r = (color_int >> 16) & 0xFF
+                g = (color_int >> 8) & 0xFF
+                b = color_int & 0xFF
+                return (r, g, b)
+        
+        # Fallback to player data (for backward compatibility)
         color = _get_key(self.get_player_data(player_id), 'color', (255, 255, 255))
-        # Handle None color (player in lobby)
         if color is None:
             return (255, 255, 255)  # Default white
+        # Handle both hex int and RGB tuple formats
+        if isinstance(color, int):
+            r = (color >> 16) & 0xFF
+            g = (color >> 8) & 0xFF
+            b = color & 0xFF
+            return (r, g, b)
         return tuple(color)
     
     def get_player_bullets(self, player_id: str) -> int:
@@ -282,7 +319,10 @@ class PlayerInfo:
     
     @property
     def name(self) -> str:
-        """Player's name."""
+        """Player's name (from metadata cache or player data)."""
+        # Use game state manager to get name from metadata cache
+        if self._game_state_manager:
+            return self._game_state_manager.get_player_name(self.player_id)
         return _get_key(self._data, 'player_name', 'Unknown')
     
     @property
@@ -302,9 +342,13 @@ class PlayerInfo:
     
     @property
     def color(self) -> Tuple[int, int, int]:
-        """Player's color as RGB tuple."""
+        """Player's color as RGB tuple (from metadata cache or player data)."""
+        # Use game state manager to get color from metadata cache
+        if self._game_state_manager:
+            return self._game_state_manager.get_player_color(self.player_id)
+        
+        # Fallback for when no game state manager is available
         color = _get_key(self._data, 'color', (255, 255, 255))
-        # Handle None color (player in lobby)
         if color is None:
             return (255, 255, 255)  # Default white
         # Handle hex int color (from optimized network protocol)

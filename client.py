@@ -1012,6 +1012,9 @@ class GameGUI:
             if self.client.connect():
                 self.client.running = True
                 
+                # Set callback for player metadata messages (optimization)
+                self.client.on_player_metadata = self.handle_player_metadata
+                
                 # Start receive thread for game socket (game state updates)
                 receive_thread = threading.Thread(target=self.client.receive_messages, daemon=True)
                 receive_thread.start()
@@ -1035,6 +1038,16 @@ class GameGUI:
         except Exception as e:
             self.state = 'connection'
             self.connection_error = f"Error: {str(e)[:30]}"
+    
+    def handle_player_metadata(self, message: Dict[str, Any]) -> None:
+        """Handle player metadata messages from server (name, color optimization)"""
+        player_id = message.get('player_id')
+        name = message.get('n')
+        color = message.get('c')
+        
+        if player_id and name is not None and color is not None:
+            # Update game state manager's metadata cache
+            self.game_state_manager.update_player_metadata(player_id, name, color)
     
     def run(self) -> None:
         """Main GUI loop"""

@@ -636,6 +636,17 @@ class GameServer:
         self.save_stats()
         
         self.logger.info(f"{player_name} started game at ({start_x}, {start_y}) with color {color} (Players in game: {players_in_game + 1}/{self.max_players})")
+        
+        # Broadcast player metadata (name + color) to all clients
+        # This optimization removes these fields from game_state updates (saves ~40-80 bytes per player per update)
+        color_int = (color[0] << 16) | (color[1] << 8) | color[2]  # RGB to 0xRRGGBB
+        metadata_msg = {\n            'type': 'player_metadata',
+            'player_id': str(client_address),
+            'n': player_name,
+            'c': color_int
+        }
+        for other_client in self.clients:
+            self.send_control_message(other_client, metadata_msg)
     
     def handle_leave_game(self, client_address: Tuple[str, int]) -> None:
         """Handle player leaving game (returning to lobby) - same as dying"""
@@ -1249,12 +1260,6 @@ class GameServer:
                     direction_str = client_data.get('direction', 'RIGHT')
                     direction_int = DIRECTION_TO_INT.get(direction_str, 3)  # Default to RIGHT
                     
-                    # Convert color from [R,G,B] to hex int for network efficiency
-                    color = client_data.get('color')
-                    color_int = None
-                    if color and len(color) == 3:
-                        color_int = (color[0] << 16) | (color[1] << 8) | color[2]  # RGB to 0xRRGGBB
-                    
                     # Optimize snake transmission: send head + length instead of all segments
                     # This reduces a 50-segment snake from ~400 bytes to ~16 bytes
                     snake = client_data.get('snake', [])
@@ -1265,19 +1270,16 @@ class GameServer:
                     else:
                         snake_data = []
                     
-                    # Build a filtered dict (exclude snake_set) with short keys for network efficiency
+                    # Build a filtered dict with only dynamic data (short keys for network efficiency)
+                    # Static data (name, color) is sent via metadata updates only
+                    # Removed: n (name), c (color), ca/ls (timestamps), ig (redundant)
                     filtered: PlayerData = {
-                        'n': client_data.get('player_name'),      # name
-                        'ca': client_data.get('connected_at'),    # connected_at
-                        'ls': client_data.get('last_seen'),       # last_seen
                         's': snake_data,                          # snake (head + length only)
                         'd': direction_int,                        # direction (int)
                         'sc': client_data.get('score'),           # score
                         'a': client_data.get('alive'),            # alive
-                        'c': color_int,                           # color (hex int)
                         'bu': client_data.get('bullets', 0),      # bullets
-                        'bo': client_data.get('bombs', 0),        # bombs
-                        'ig': client_data.get('in_game', False)   # in_game
+                        'bo': client_data.get('bombs', 0)         # bombs
                     }
                     players_snapshot[str(client_address)] = filtered
                 self.game_state['players'] = players_snapshot
