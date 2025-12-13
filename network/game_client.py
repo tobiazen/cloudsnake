@@ -4,6 +4,9 @@ import time
 import json
 from typing import Optional, Dict, Any
 
+# Direction mappings for network optimization
+INT_TO_DIRECTION = {0: 'UP', 1: 'DOWN', 2: 'LEFT', 3: 'RIGHT'}
+
 
 class GameClient:
     """Handle network communication with CloudSnake game server"""
@@ -168,7 +171,10 @@ class GameClient:
         # Update local direction from server's authoritative state
         if self.player_id and self.player_id in players:
             server_direction = players[self.player_id].get('direction')
-            if server_direction:
+            if server_direction is not None:
+                # Convert int direction to string if needed
+                if isinstance(server_direction, int):
+                    server_direction = INT_TO_DIRECTION.get(server_direction, 'RIGHT')
                 self.player_data['direction'] = server_direction
     
     def send_heartbeat(self) -> None:

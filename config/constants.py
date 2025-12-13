@@ -6,6 +6,16 @@ SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 750
 FPS = 60
 
+# Direction enums (for network optimization)
+DIR_UP = 0
+DIR_DOWN = 1
+DIR_LEFT = 2
+DIR_RIGHT = 3
+
+# Direction mappings
+DIRECTION_TO_INT = {'UP': 0, 'DOWN': 1, 'LEFT': 2, 'RIGHT': 3}
+INT_TO_DIRECTION = {0: 'UP', 1: 'DOWN', 2: 'LEFT', 3: 'RIGHT'}
+
 # Basic colors - Enhanced palette
 WHITE: Tuple[int, int, int] = (255, 255, 255)
 BLACK: Tuple[int, int, int] = (0, 0, 0)

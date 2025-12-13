@@ -7,6 +7,10 @@ import logging
 from typing import Dict, Tuple, Any, List, Set, Optional
 from datetime import datetime
 
+# Direction mappings for optimization
+DIRECTION_TO_INT = {'UP': 0, 'DOWN': 1, 'LEFT': 2, 'RIGHT': 3}
+INT_TO_DIRECTION = {0: 'UP', 1: 'DOWN', 2: 'LEFT', 3: 'RIGHT'}
+
 # Type alias for player data dictionary
 PlayerData = Dict[str, Any]
 # Type alias for bullet data dictionary  
@@ -1210,13 +1214,17 @@ class GameServer:
                 # Rebuild players sub-dict excluding non-serializable fields
                 players_snapshot: Dict[str, PlayerData] = {}
                 for client_address, client_data in self.clients.items():
+                    # Convert direction string to int for network efficiency
+                    direction_str = client_data.get('direction', 'RIGHT')
+                    direction_int = DIRECTION_TO_INT.get(direction_str, 3)  # Default to RIGHT
+                    
                     # Build a filtered dict (exclude snake_set)
                     filtered: PlayerData = {
                         'player_name': client_data.get('player_name'),
                         'connected_at': client_data.get('connected_at'),
                         'last_seen': client_data.get('last_seen'),
                         'snake': client_data.get('snake'),  # list of tuple positions OK (tuples JSON → lists)
-                        'direction': client_data.get('direction'),
+                        'direction': direction_int,  # Send as int instead of string
                         'score': client_data.get('score'),
                         'alive': client_data.get('alive'),
                         'color': client_data.get('color'),
