@@ -477,6 +477,22 @@ class GameServer:
             }
             self.send_to_client(client_address, welcome_msg)
             self.logger.info(f"{player_name} entered the lobby (Total: {len(self.clients)} connected)")
+            
+            # Send metadata for all existing in-game players to the new client
+            # This ensures the new client has name/color info for all active players
+            for other_address, other_data in self.clients.items():
+                if other_address != client_address and other_data.get('in_game', False):
+                    other_color = other_data.get('color')
+                    other_name = other_data.get('player_name')
+                    if other_color and other_name:
+                        color_int = (other_color[0] << 16) | (other_color[1] << 8) | other_color[2]
+                        metadata_msg = {
+                            'type': 'player_metadata',
+                            'player_id': str(other_address),
+                            'n': other_name,
+                            'c': color_int
+                        }
+                        self.send_to_client(client_address, metadata_msg)
         else:
             # Client reconnecting
             self.clients[client_address]['last_seen'] = time.time()
@@ -640,13 +656,14 @@ class GameServer:
         # Broadcast player metadata (name + color) to all clients
         # This optimization removes these fields from game_state updates (saves ~40-80 bytes per player per update)
         color_int = (color[0] << 16) | (color[1] << 8) | color[2]  # RGB to 0xRRGGBB
-        metadata_msg = {\n            'type': 'player_metadata',
+        metadata_msg = {
+            'type': 'player_metadata',
             'player_id': str(client_address),
             'n': player_name,
             'c': color_int
         }
         for other_client in self.clients:
-            self.send_control_message(other_client, metadata_msg)
+            self.send_to_client(other_client, metadata_msg)
     
     def handle_leave_game(self, client_address: Tuple[str, int]) -> None:
         """Handle player leaving game (returning to lobby) - same as dying"""
