@@ -40,7 +40,7 @@ class GameGUI:
         self.settings = load_settings(self.settings_file)
         
         # GUI state
-        self.state = 'connection'  # 'connection', 'connecting', 'game'
+        self.state = 'connection'  # 'connection', 'connecting', 'lobby', 'game'
         self.connection_error = ""
         
         # Name dropdown state
@@ -482,10 +482,10 @@ class GameGUI:
         if self.game_menu_open:
             menu_x = 20
             menu_y = 90
-            # Menu items change based on game state
-            if self.in_game:
+            # Menu items change based on state
+            if self.state == 'game':
                 menu_items = ['Statistics', 'Leave Game', 'Disconnect']
-            else:
+            else:  # lobby state
                 menu_items = ['Statistics', 'Start Game', 'Disconnect']
             
             for i, item in enumerate(menu_items):
@@ -703,6 +703,53 @@ class GameGUI:
         # No client-side game logic needed - server handles everything
         pass
     
+    def draw_lobby_screen(self) -> None:
+        """Draw the lobby screen"""
+        # If showing statistics overlay, draw that instead
+        if self.show_statistics:
+            self.draw_statistics_screen()
+            return
+        
+        # Dark background
+        self.screen.fill(BG_COLOR)
+        
+        # Draw title bar and side panel (show connected players)
+        self.draw_title_bar()
+        self.draw_side_panel()
+        
+        # Draw game area background
+        self.draw_game_area_background()
+        
+        # Draw lobby message in center of game area
+        lobby_text = self.title_font.render("LOBBY", True, CYAN)
+        lobby_rect = lobby_text.get_rect(center=(self.game_offset_x + self.game_area_width // 2,
+                                                 self.game_offset_y + self.game_area_height // 2 - 50))
+        self.screen.blit(lobby_text, lobby_rect)
+        
+        info_text = self.font.render("Open Menu and click 'Start Game' to play", True, TEXT_COLOR)
+        info_rect = info_text.get_rect(center=(self.game_offset_x + self.game_area_width // 2,
+                                               self.game_offset_y + self.game_area_height // 2 + 20))
+        self.screen.blit(info_text, info_rect)
+        
+        # Show who else is in the lobby
+        if self.client and self.game_state_manager.is_valid:
+            lobby_players = [name for _, data in self.game_state_manager.get_players().items() 
+                           if not data.get('in_game', False)]
+            if len(lobby_players) > 1:
+                waiting_text = self.small_font.render(f"{len(lobby_players)} players in lobby", True, GRAY)
+                waiting_rect = waiting_text.get_rect(center=(self.game_offset_x + self.game_area_width // 2,
+                                                            self.game_offset_y + self.game_area_height // 2 + 60))
+                self.screen.blit(waiting_text, waiting_rect)
+        
+        # Controls info below game area
+        game_area_bottom = self.game_offset_y + self.game_area_height
+        controls_y = game_area_bottom + 5
+        controls = self.small_font.render("Open Menu to Start Game or view Statistics | ESC: Quit", True, GRAY)
+        self.screen.blit(controls, (20, controls_y))
+        
+        # Menu button and dropdown (rendered last to be on top)
+        self.draw_menu_dropdown()
+    
     def draw_game_screen(self) -> None:
         """Draw the game screen with snake game"""
         # If showing statistics overlay, draw that instead
@@ -795,6 +842,43 @@ class GameGUI:
             # Close statistics view, return to game
             self.show_statistics = False
     
+    def handle_lobby_events(self, event: Any) -> None:
+        """Handle events in lobby"""
+        if not self.client:
+            return
+        
+        # Handle menu button click
+        if hasattr(self, 'menu_button') and self.menu_button.handle_event(event):
+            self.game_menu_open = not self.game_menu_open
+            return
+        
+        # Handle menu dropdown clicks
+        if event.type == pygame.MOUSEBUTTONDOWN and self.game_menu_open:
+            mouse_pos = event.pos
+            if hasattr(self, 'menu_items_rects'):
+                for i, rect in enumerate(self.menu_items_rects):
+                    if rect.collidepoint(mouse_pos):
+                        if i == 0:  # Statistics
+                            self.show_statistics = True
+                            self.game_menu_open = False
+                        elif i == 1:  # Start Game
+                            # Start game - join active game
+                            self.client.send_to_server({'type': 'start_game'}, use_game_socket=True)
+                            self.in_game = True
+                            self.left_voluntarily = False
+                            self.state = 'game'  # Switch to game state
+                            self.game_menu_open = False
+                        elif i == 2:  # Disconnect
+                            self.client.disconnect()
+                            self.state = 'connection'
+                            self.game_menu_open = False
+                        return
+            
+            # Close menu if clicking outside
+            menu_area = pygame.Rect(20, 50, 180, 168)
+            if not menu_area.collidepoint(mouse_pos):
+                self.game_menu_open = False
+    
     def handle_game_events(self, event: Any) -> None:
         """Handle events during game"""
         if not self.client:
@@ -819,17 +903,12 @@ class GameGUI:
                         if i == 0:  # Statistics
                             self.show_statistics = True
                             self.game_menu_open = False
-                        elif i == 1:  # Start Game / Leave Game
-                            if self.in_game:
-                                # Leave game - return to lobby
-                                self.client.send_to_server({'type': 'leave_game'}, use_game_socket=True)
-                                self.in_game = False
-                                self.left_voluntarily = True  # Mark as voluntary leave
-                            else:
-                                # Start game - join active game
-                                self.client.send_to_server({'type': 'start_game'}, use_game_socket=True)
-                                self.in_game = True
-                                self.left_voluntarily = False  # Reset flag when starting game
+                        elif i == 1:  # Leave Game (only available in game state)
+                            # Leave game - return to lobby
+                            self.client.send_to_server({'type': 'leave_game'}, use_game_socket=True)
+                            self.in_game = False
+                            self.left_voluntarily = True  # Mark as voluntary leave
+                            self.state = 'lobby'  # Switch to lobby state
                             self.game_menu_open = False
                         elif i == 2:  # Disconnect
                             self.client.disconnect()
@@ -939,7 +1018,7 @@ class GameGUI:
                 heartbeat_thread = threading.Thread(target=self.client.send_heartbeat, daemon=True)
                 heartbeat_thread.start()
                 
-                self.state = 'game'
+                self.state = 'lobby'  # Enter lobby after connecting
             else:
                 self.state = 'connection'
                 # Check if connection failed due to server being full
@@ -964,6 +1043,8 @@ class GameGUI:
                 # State-specific event handling
                 if self.state == 'connection':
                     self.handle_connection_events(event)
+                elif self.state == 'lobby':
+                    self.handle_lobby_events(event)
                 elif self.state == 'game':
                     self.handle_game_events(event)
             
@@ -972,6 +1053,8 @@ class GameGUI:
                 self.draw_connection_screen()
             elif self.state == 'connecting':
                 self.draw_connecting_screen()
+            elif self.state == 'lobby':
+                self.draw_lobby_screen()
             elif self.state == 'game':
                 self.update_snake_game()
                 self.draw_game_screen()

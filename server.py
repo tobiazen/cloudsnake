@@ -1248,10 +1248,14 @@ class GameServer:
                 }
                 self.mess_count += 1
 
-                # Send to all connected clients using game socket
+                # Send only to clients that are in game
                 disconnected: List[Tuple[str, int]] = []
                 sent_count = 0
-                for client_address in self.clients:
+                for client_address, client_data in self.clients.items():
+                    # Only send game state to clients actively in the game
+                    if not client_data.get('in_game', False):
+                        continue
+                    
                     try:
                         # Use the game socket address for this control address
                         game_address = self.game_addresses.get(client_address)
