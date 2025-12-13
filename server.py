@@ -7,6 +7,14 @@ import logging
 from typing import Dict, Tuple, Any, List, Set, Optional
 from datetime import datetime
 
+try:
+    import msgpack
+    MSGPACK_AVAILABLE = True
+except ImportError:
+    MSGPACK_AVAILABLE = False
+    print("Warning: msgpack not installed. Install with: pip install msgpack")
+    print("Falling back to JSON encoding (larger messages)")
+
 # Direction mappings for optimization
 DIRECTION_TO_INT = {'UP': 0, 'DOWN': 1, 'LEFT': 2, 'RIGHT': 3}
 INT_TO_DIRECTION = {0: 'UP', 1: 'DOWN', 2: 'LEFT', 3: 'RIGHT'}
@@ -267,7 +275,16 @@ class GameServer:
             client_address = None
             try:
                 data, client_address = self.control_socket.recvfrom(1024)
-                message = json.loads(data.decode('utf-8'))
+                
+                # Try msgpack first, fallback to JSON
+                try:
+                    if MSGPACK_AVAILABLE:
+                        message = msgpack.unpackb(data, raw=False)
+                    else:
+                        message = json.loads(data.decode('utf-8'))
+                except (msgpack.exceptions.ExtraData, ValueError):
+                    # Fallback to JSON if msgpack fails
+                    message = json.loads(data.decode('utf-8'))
                 
                 # Handle control message types
                 message_type: str = message.get('type', '')
@@ -288,7 +305,16 @@ class GameServer:
             game_address = None
             try:
                 data, game_address = self.game_socket.recvfrom(1024)
-                message = json.loads(data.decode('utf-8'))
+                
+                # Try msgpack first, fallback to JSON
+                try:
+                    if MSGPACK_AVAILABLE:
+                        message = msgpack.unpackb(data, raw=False)
+                    else:
+                        message = json.loads(data.decode('utf-8'))
+                except (msgpack.exceptions.ExtraData, ValueError):
+                    # Fallback to JSON if msgpack fails
+                    message = json.loads(data.decode('utf-8'))
                 
                 # Find the control address for this game message
                 # First, try to match by player_id in message (most reliable)
@@ -1342,7 +1368,12 @@ class GameServer:
             message: Message to send
             use_game_socket: If True, use game socket (port 50001), otherwise use control socket (port 50000)
         """
-        data = json.dumps(message).encode('utf-8')
+        # Use MessagePack if available (40-60% smaller), otherwise fallback to JSON
+        if MSGPACK_AVAILABLE:
+            data = msgpack.packb(message, use_bin_type=True)
+        else:
+            data = json.dumps(message).encode('utf-8')
+        
         if use_game_socket:
             self.game_socket.sendto(data, client_address)
         else:

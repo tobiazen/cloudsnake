@@ -4,6 +4,14 @@ import time
 import json
 from typing import Optional, Dict, Any
 
+try:
+    import msgpack
+    MSGPACK_AVAILABLE = True
+except ImportError:
+    MSGPACK_AVAILABLE = False
+    print("Warning: msgpack not installed. Install with: pip install msgpack")
+    print("Falling back to JSON encoding (larger messages)")
+
 # Direction mappings for network optimization
 INT_TO_DIRECTION = {0: 'UP', 1: 'DOWN', 2: 'LEFT', 3: 'RIGHT'}
 
@@ -58,7 +66,15 @@ class GameClient:
             
             # Wait for welcome message
             data, addr = self.control_socket.recvfrom(1024)
-            response = json.loads(data.decode('utf-8'))
+            
+            # Try msgpack first, fallback to JSON
+            try:
+                if MSGPACK_AVAILABLE:
+                    response = msgpack.unpackb(data, raw=False)
+                else:
+                    response = json.loads(data.decode('utf-8'))
+            except (msgpack.exceptions.ExtraData, ValueError):
+                response = json.loads(data.decode('utf-8'))
             
             if response.get('type') == 'welcome':
                 self.connected = True
@@ -92,7 +108,16 @@ class GameClient:
         while self.running:
             try:
                 data, addr = self.game_socket.recvfrom(4096)
-                message = json.loads(data.decode('utf-8'))
+                
+                # Try msgpack first, fallback to JSON
+                try:
+                    if MSGPACK_AVAILABLE:
+                        message = msgpack.unpackb(data, raw=False)
+                    else:
+                        message = json.loads(data.decode('utf-8'))
+                except (msgpack.exceptions.ExtraData, ValueError):
+                    message = json.loads(data.decode('utf-8'))
+                
                 self.handle_server_message(message)
                 
             except socket.timeout:
@@ -109,7 +134,16 @@ class GameClient:
         while self.running:
             try:
                 data, addr = self.control_socket.recvfrom(1024)
-                message = json.loads(data.decode('utf-8'))
+                
+                # Try msgpack first, fallback to JSON
+                try:
+                    if MSGPACK_AVAILABLE:
+                        message = msgpack.unpackb(data, raw=False)
+                    else:
+                        message = json.loads(data.decode('utf-8'))
+                except (msgpack.exceptions.ExtraData, ValueError):
+                    message = json.loads(data.decode('utf-8'))
+                
                 message_type = message.get('type', '')
                 
                 if message_type == 'pong':
@@ -249,7 +283,12 @@ class GameClient:
         if use_game_socket and self.player_id:
             message['player_id'] = str(self.player_id)
         
-        data = json.dumps(message).encode('utf-8')
+        # Use MessagePack if available (40-60% smaller), otherwise fallback to JSON
+        if MSGPACK_AVAILABLE:
+            data = msgpack.packb(message, use_bin_type=True)
+        else:
+            data = json.dumps(message).encode('utf-8')
+        
         if use_game_socket:
             self.game_socket.sendto(data, self.game_address)
         else:
