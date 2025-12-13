@@ -189,7 +189,7 @@ cython_debug/
 # .vscode/
 
 # Project settings
-settings.json
+# (settings.json is tracked but with --assume-unchanged to ignore local changes)
 
 # Ruff stuff:
 .ruff_cache/
@@ -219,5 +219,3 @@ build/
 
 # Game runtime files
 player_stats.json
-settings.json
-settings.json
