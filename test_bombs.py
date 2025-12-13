@@ -93,9 +93,9 @@ class TestBombFeature(unittest.TestCase):
 
     @patch('random.random')
     def test_bomb_brick_spawn_probability(self, mock_random: MagicMock) -> None:
-        """Test that bomb bricks spawn with 2% probability"""
-        # Mock random to return 0.01 (< 0.02, should spawn bomb brick)
-        mock_random.return_value = 0.01
+        """Test that bomb bricks spawn with 15% probability and bullet bricks with 15% probability"""
+        # Mock random to return 0.10 (< 0.15, should spawn bomb brick)
+        mock_random.return_value = 0.10
         
         initial_bomb_bricks = len(self.server.bomb_bricks)
         
@@ -106,8 +106,8 @@ class TestBombFeature(unittest.TestCase):
         self.assertTrue(result)
         self.assertEqual(len(self.server.bomb_bricks), initial_bomb_bricks + 1)
         
-        # Mock random to return 0.03 (>= 0.02 but < 0.07, should spawn bullet brick)
-        mock_random.return_value = 0.03
+        # Mock random to return 0.20 (>= 0.15 but < 0.30, should spawn bullet brick)
+        mock_random.return_value = 0.20
         initial_bullet_bricks = len(self.server.bullet_bricks)
         
         result = self.server.spawn_brick()
@@ -115,8 +115,8 @@ class TestBombFeature(unittest.TestCase):
         self.assertTrue(result)
         self.assertEqual(len(self.server.bullet_bricks), initial_bullet_bricks + 1)
         
-        # Mock random to return 0.10 (>= 0.07, should spawn regular brick)
-        mock_random.return_value = 0.10
+        # Mock random to return 0.50 (>= 0.30, should spawn regular brick)
+        mock_random.return_value = 0.50
         initial_bricks = len(self.server.bricks)
         
         result = self.server.spawn_brick()

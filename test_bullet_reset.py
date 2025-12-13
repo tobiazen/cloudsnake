@@ -37,6 +37,8 @@ class TestBulletReset(unittest.TestCase):
             'score': 500,
             'alive': True,
             'bullets': 5,  # Player has 5 bullets
+            'bombs': 0,
+            'in_game': True,  # Player is in active game
             'last_seen': 0
         }
         
@@ -49,6 +51,8 @@ class TestBulletReset(unittest.TestCase):
             'score': 300,
             'alive': True,
             'bullets': 3,  # Player has 3 bullets
+            'bombs': 0,
+            'in_game': True,  # Player is in active game
             'last_seen': 0
         }
         
@@ -108,7 +112,11 @@ class TestBulletReset(unittest.TestCase):
         
         # Move player 1 towards the top wall
         self.server.clients[self.player1_addr]['snake'] = [(0, 0)]  # At edge
+        self.server.clients[self.player1_addr]['snake_set'] = {(0, 0)}
         self.server.clients[self.player1_addr]['direction'] = 'UP'  # Moving towards wall
+        
+        # Update occupied cells to include player's snake
+        self.server.occupied_cells.add((0, 0))
         
         # Process game logic (will detect wall collision)
         self.server.update_game_logic()
@@ -123,11 +131,14 @@ class TestBulletReset(unittest.TestCase):
         self.assertEqual(self.server.clients[self.player1_addr]['bullets'], 5)
         self.assertTrue(self.server.clients[self.player1_addr]['alive'])
         
-        # Create a snake that will collide with itself
-        # Snake moving right will hit its own body
-        self.server.clients[self.player1_addr]['snake'] = [(5, 5), (4, 5), (4, 6), (5, 6), (6, 6), (6, 5)]
-        self.server.clients[self.player1_addr]['snake_set'] = {(5, 5), (4, 5), (4, 6), (5, 6), (6, 6), (6, 5)}
-        self.server.clients[self.player1_addr]['direction'] = 'RIGHT'  # Will hit (6, 5)
+        # Create a snake that will collide with itself on next move
+        # Snake at (5,5) moving RIGHT will hit (6,5) which is in the body
+        self.server.clients[self.player1_addr]['snake'] = [(5, 5), (4, 5), (3, 5), (3, 6), (4, 6), (5, 6), (6, 6), (6, 5)]
+        self.server.clients[self.player1_addr]['snake_set'] = {(5, 5), (4, 5), (3, 5), (3, 6), (4, 6), (5, 6), (6, 6), (6, 5)}
+        self.server.clients[self.player1_addr]['direction'] = 'RIGHT'  # Will hit (6, 5) which is in snake_set
+        
+        # Update occupied cells
+        self.server.occupied_cells.update(self.server.clients[self.player1_addr]['snake_set'])
         
         # Process game logic (will detect self-collision)
         self.server.update_game_logic()

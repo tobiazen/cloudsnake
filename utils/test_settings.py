@@ -23,8 +23,10 @@ class TestSettings(unittest.TestCase):
         settings = load_settings('nonexistent_file.json')
         self.assertIn('player_names', settings)
         self.assertIn('last_player_name', settings)
-        self.assertIn('server_ip', settings)
+        self.assertIn('server_addresses', settings)
+        self.assertIn('last_server_address', settings)
         self.assertEqual(settings['player_names'], [])
+        self.assertEqual(settings['server_addresses'], ['129.151.219.36'])
     
     def test_save_and_load_settings(self):
         """Test saving and loading settings"""
