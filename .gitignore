@@ -218,4 +218,4 @@ dist/
 build/
 
 # Game runtime files
-player_stats.json
+# (player_stats.json is tracked but with --assume-unchanged to ignore local changes)
