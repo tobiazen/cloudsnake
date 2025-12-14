@@ -33,15 +33,30 @@ if [ ! -f "$SERVICE_FILE" ]; then
     exit 1
 fi
 
+# Detect the actual user who owns the cloudsnake directory
+ACTUAL_USER=$(stat -c '%U' "$SCRIPT_DIR")
+echo "Detected repository owner: $ACTUAL_USER"
+
+# Create a temporary service file with the correct user
+TEMP_SERVICE=$(mktemp)
+sed "s/User=s0001311/User=$ACTUAL_USER/g" "$SERVICE_FILE" > "$TEMP_SERVICE"
+sed -i "s|WorkingDirectory=/home/s0001311/dev/cloudsnake|WorkingDirectory=$SCRIPT_DIR|g" "$TEMP_SERVICE"
+sed -i "s|ExecStart=/home/s0001311/dev/cloudsnake/venv|ExecStart=$SCRIPT_DIR/venv|g" "$TEMP_SERVICE"
+sed -i "s|/home/s0001311/dev/cloudsnake/server.py|$SCRIPT_DIR/server.py|g" "$TEMP_SERVICE"
+
+echo "Service will run as user: $ACTUAL_USER"
+echo "Working directory: $SCRIPT_DIR"
+
 # Stop existing service if running
 if systemctl is-active --quiet "$SERVICE_NAME"; then
     echo "Stopping existing cloudsnake service..."
     systemctl stop "$SERVICE_NAME"
 fi
 
-# Copy service file to systemd directory
+# Copy modified service file to systemd directory
 echo "Installing service file..."
-cp "$SERVICE_FILE" "$SYSTEMD_DIR/$SERVICE_NAME"
+cp "$TEMP_SERVICE" "$SYSTEMD_DIR/$SERVICE_NAME"
+rm "$TEMP_SERVICE"
 echo "✓ Service file installed to $SYSTEMD_DIR/$SERVICE_NAME"
 
 # Reload systemd daemon
