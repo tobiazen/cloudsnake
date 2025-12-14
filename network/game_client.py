@@ -286,7 +286,7 @@ class GameClient:
         """
         # Add player_id to game socket messages for proper client identification
         if use_game_socket and self.player_id:
-            message['player_id'] = str(self.player_id)
+            message['player_id'] = self.player_id
         
         # Use MessagePack if available (40-60% smaller), otherwise fallback to JSON
         if MSGPACK_AVAILABLE:

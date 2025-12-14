@@ -102,7 +102,7 @@ class GameStateManager:
         players = self.get_players()
         return players.get(player_id, {})
     
-    def get_player_name(self, player_id: str) -> str:
+    def get_player_name(self, player_id: int) -> str:
         """Get a player's name (from metadata cache or player data)."""
         # Check metadata cache first (optimization - name not sent in game_state updates)
         if player_id in self._player_metadata:
@@ -110,11 +110,11 @@ class GameStateManager:
         # Fallback to player data (for backward compatibility)
         return _get_key(self.get_player_data(player_id), 'player_name', 'Unknown')
     
-    def get_player_score(self, player_id: str) -> int:
+    def get_player_score(self, player_id: int) -> int:
         """Get a player's score."""
         return _get_key(self.get_player_data(player_id), 'score', 0)
     
-    def get_player_snake(self, player_id: str) -> List[Tuple[int, int]]:
+    def get_player_snake(self, player_id: int) -> List[Tuple[int, int]]:
         """
         Get a player's snake segments.
         Handles delta encoding: if snake is [head, length], reconstructs from cache.
@@ -160,7 +160,7 @@ class GameStateManager:
             self._snake_cache[player_id] = full_snake
             return full_snake
     
-    def get_player_color(self, player_id: str) -> Tuple[int, int, int]:
+    def get_player_color(self, player_id: int) -> Tuple[int, int, int]:
         """Get a player's color as RGB tuple (from metadata cache or player data)."""
         # Check metadata cache first (optimization - color not sent in game_state updates)
         if player_id in self._player_metadata:
@@ -184,19 +184,19 @@ class GameStateManager:
             return (r, g, b)
         return tuple(color)
     
-    def get_player_bullets(self, player_id: str) -> int:
+    def get_player_bullets(self, player_id: int) -> int:
         """Get number of bullets a player has."""
         return _get_key(self.get_player_data(player_id), 'bullets', 0)
     
-    def get_player_bombs(self, player_id: str) -> int:
+    def get_player_bombs(self, player_id: int) -> int:
         """Get number of bombs a player has."""
         return _get_key(self.get_player_data(player_id), 'bombs', 0)
     
-    def is_player_alive(self, player_id: str) -> bool:
+    def is_player_alive(self, player_id: int) -> bool:
         """Check if a player is alive."""
         return _get_key(self.get_player_data(player_id), 'alive', True)
     
-    def is_player_in_game(self, player_id: str) -> bool:
+    def is_player_in_game(self, player_id: int) -> bool:
         """Check if a player is actively in the game (not in lobby)."""
         return _get_key(self.get_player_data(player_id), 'in_game', False)
     

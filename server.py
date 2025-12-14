@@ -19,6 +19,18 @@ except ImportError:
 DIRECTION_TO_INT = {'UP': 0, 'DOWN': 1, 'LEFT': 2, 'RIGHT': 3}
 INT_TO_DIRECTION = {0: 'UP', 1: 'DOWN', 2: 'LEFT', 3: 'RIGHT'}
 
+def hash_address_to_player_id(address: Tuple[str, int]) -> int:
+    """Hash IP:port tuple to a 2-byte integer (0-65535) for network efficiency.
+    
+    Reduces player ID from ~27 bytes to 2-3 bytes in messages.
+    Uses simple hash that's deterministic and collision-resistant for small player counts.
+    """
+    # Combine IP and port into single string
+    addr_str = f"{address[0]}:{address[1]}"
+    # Python's hash() is deterministic within same process
+    # Take modulo to fit in 16-bit unsigned int (0-65535)
+    return hash(addr_str) & 0xFFFF
+
 # Type alias for player data dictionary
 PlayerData = Dict[str, Any]
 # Type alias for bullet data dictionary  
@@ -322,14 +334,20 @@ class GameServer:
                 control_address = None
                 
                 if player_id:
-                    # player_id is the control address tuple as string
-                    import ast
-                    try:
-                        control_address = ast.literal_eval(player_id) if isinstance(player_id, str) else player_id
-                        if control_address not in self.clients:
+                    # player_id is now a short integer, look up full address
+                    if isinstance(player_id, int):
+                        control_address = self.id_to_address.get(player_id)
+                        if control_address and control_address not in self.clients:
                             control_address = None
-                    except:
-                        control_address = None
+                    # Legacy fallback for old string-based IDs
+                    elif isinstance(player_id, str):
+                        import ast
+                        try:
+                            control_address = ast.literal_eval(player_id)
+                            if control_address not in self.clients:
+                                control_address = None
+                        except:
+                            control_address = None
                 
                 # Fallback: match by IP and port proximity (least reliable, but handles old clients)
                 if not control_address:
@@ -656,9 +674,10 @@ class GameServer:
         # Broadcast player metadata (name + color) to all clients
         # This optimization removes these fields from game_state updates (saves ~40-80 bytes per player per update)
         color_int = (color[0] << 16) | (color[1] << 8) | color[2]  # RGB to 0xRRGGBB
+        player_id = hash_address_to_player_id(client_address)
         metadata_msg = {
             'type': 'player_metadata',
-            'player_id': str(client_address),
+            'player_id': player_id,
             'n': player_name,
             'c': color_int
         }
@@ -1271,7 +1290,7 @@ class GameServer:
                 self.game_state['game_time'] += self.broadcast_interval
                 
                 # Rebuild players sub-dict excluding non-serializable fields
-                players_snapshot: Dict[str, PlayerData] = {}
+                players_snapshot: Dict[int, PlayerData] = {}
                 for client_address, client_data in self.clients.items():
                     # Convert direction string to int for network efficiency
                     direction_str = client_data.get('direction', 'RIGHT')
@@ -1290,6 +1309,7 @@ class GameServer:
                     # Build a filtered dict with only dynamic data (short keys for network efficiency)
                     # Static data (name, color) is sent via metadata updates only
                     # Removed: n (name), c (color), ca/ls (timestamps), ig (redundant)
+                    # Use short player ID (2-byte int) instead of full address string
                     filtered: PlayerData = {
                         's': snake_data,                          # snake (head + length only)
                         'd': direction_int,                        # direction (int)
@@ -1298,7 +1318,8 @@ class GameServer:
                         'bu': client_data.get('bullets', 0),      # bullets
                         'bo': client_data.get('bombs', 0)         # bombs
                     }
-                    players_snapshot[str(client_address)] = filtered
+                    player_id = hash_address_to_player_id(client_address)
+                    players_snapshot[player_id] = filtered
                 self.game_state['players'] = players_snapshot
                 
                 # Update bricks and bullets in game state
