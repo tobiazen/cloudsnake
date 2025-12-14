@@ -80,6 +80,12 @@ class GameGUI:
         self.last_update = time.time()
         self.update_interval = 0.15  # Move every 0.15 seconds
         
+        # Snake interpolation for smooth movement
+        self.snake_positions = {}  # {player_id: [(x, y), ...]} - previous server positions
+        self.snake_targets = {}    # {player_id: [(x, y), ...]} - current server positions
+        self.interpolation_time = 0.0  # Time elapsed since last server update
+        self.server_update_interval = 0.5  # Server updates at 2Hz (0.5 seconds)
+        
         # Respawn button (shown when dead) - will be positioned dynamically
         self.respawn_button = Button(350, 380, 150, 30, 'Respawn', GREEN)
         
@@ -114,6 +120,8 @@ class GameGUI:
         """Update the game state manager with latest data from client."""
         if self.client and self.client.game_state:
             self.game_state_manager.update(self.client.game_state)
+            # Update interpolation targets when new state arrives
+            self.update_snake_positions_from_server()
         else:
             self.game_state_manager.update(None)
     
@@ -204,12 +212,14 @@ class GameGUI:
             head_color = player.color
             body_color = player.body_color
             
-            # Draw snake with rounded style and glow effect
+            # Draw snake with rounded style and glow effect using interpolated positions
             for i, segment in enumerate(player.snake):
-                x, y = segment
+                # Get interpolated position for smooth movement
+                interp_x, interp_y = self.get_interpolated_position(player_id, i)
+                
                 rect = pygame.Rect(
-                    self.game_offset_x + x * self.grid_size + 2,
-                    self.game_offset_y + y * self.grid_size + 2,
+                    self.game_offset_x + interp_x * self.grid_size + 2,
+                    self.game_offset_y + interp_y * self.grid_size + 2,
                     self.grid_size - 4,
                     self.grid_size - 4
                 )
@@ -1042,6 +1052,66 @@ class GameGUI:
             # Update game state manager's metadata cache
             self.game_state_manager.update_player_metadata(player_id, name, color)
     
+    def update_interpolation(self) -> None:
+        """Update interpolation time for smooth snake movement"""
+        delta_time = self.clock.get_time() / 1000.0  # Convert ms to seconds
+        self.interpolation_time += delta_time
+        
+        # Cap interpolation time at server update interval
+        if self.interpolation_time > self.server_update_interval:
+            self.interpolation_time = self.server_update_interval
+    
+    def update_snake_positions_from_server(self) -> None:
+        """Called when new game state arrives from server - update target positions"""
+        if not self.game_state_manager.is_valid:
+            return
+        
+        for player_id, player_data in self.game_state_manager.get_players().items():
+            player = PlayerInfo(player_id, player_data, self.game_state_manager)
+            if player.snake:
+                # Store previous positions
+                if player_id in self.snake_targets:
+                    self.snake_positions[player_id] = self.snake_targets[player_id].copy()
+                else:
+                    self.snake_positions[player_id] = player.snake.copy()
+                
+                # Set new target positions
+                self.snake_targets[player_id] = player.snake.copy()
+        
+        # Reset interpolation timer
+        self.interpolation_time = 0.0
+    
+    def get_interpolated_position(self, player_id: int, segment_index: int) -> Tuple[float, float]:
+        """Get interpolated position for a snake segment"""
+        # Get current and target positions
+        if player_id not in self.snake_positions or player_id not in self.snake_targets:
+            # No interpolation data, return target position
+            if player_id in self.snake_targets and segment_index < len(self.snake_targets[player_id]):
+                return self.snake_targets[player_id][segment_index]
+            return (0, 0)
+        
+        current_snake = self.snake_positions[player_id]
+        target_snake = self.snake_targets[player_id]
+        
+        # Handle snake length changes
+        if segment_index >= len(current_snake) or segment_index >= len(target_snake):
+            # Segment doesn't exist in both states, just return target
+            if segment_index < len(target_snake):
+                return target_snake[segment_index]
+            return (0, 0)
+        
+        # Interpolate between current and target
+        t = min(self.interpolation_time / self.server_update_interval, 1.0)
+        
+        current_x, current_y = current_snake[segment_index]
+        target_x, target_y = target_snake[segment_index]
+        
+        # Linear interpolation
+        interp_x = current_x + (target_x - current_x) * t
+        interp_y = current_y + (target_y - current_y) * t
+        
+        return (interp_x, interp_y)
+    
     def run(self) -> None:
         """Main GUI loop"""
         while self.running:
@@ -1069,6 +1139,7 @@ class GameGUI:
                 self.draw_lobby_screen()
             elif self.state == 'game':
                 self.update_snake_game()
+                self.update_interpolation()
                 self.draw_game_screen()
             
             # Update display
