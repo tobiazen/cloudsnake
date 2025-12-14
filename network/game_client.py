@@ -114,37 +114,36 @@ class GameClient:
                 
                 # Try to decode message - msgpack or JSON
                 message = None
-                try:
-                    # First check if it's binary (msgpack)
-                    if data[0] in (0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
-                                   0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f,
-                                   0xde, 0xdf):
-                        # Binary msgpack data
-                        if MSGPACK_AVAILABLE:
-                            message = msgpack.unpackb(data, raw=False)
-                        else:
-                            print("❌ Server sent MessagePack data but msgpack not installed. Install with: pip install msgpack")
-                            continue
-                    else:
-                        # Try JSON
-                        message = json.loads(data.decode('utf-8'))
-                except Exception:
-                    # If detection fails, try both
+                decode_error = None
+                
+                # Try msgpack first if available
+                if MSGPACK_AVAILABLE:
                     try:
-                        if MSGPACK_AVAILABLE:
-                            message = msgpack.unpackb(data, raw=False)
-                    except Exception:
+                        message = msgpack.unpackb(data, raw=False)
+                        print(f"   ✓ Decoded as MessagePack")
+                    except Exception as e:
+                        decode_error = f"msgpack failed: {e}"
+                        # Try JSON as fallback
                         try:
                             message = json.loads(data.decode('utf-8'))
-                        except Exception:
-                            pass
+                            print(f"   ✓ Decoded as JSON")
+                        except Exception as e2:
+                            decode_error = f"msgpack failed: {e}, json failed: {e2}"
+                else:
+                    # Only JSON available
+                    try:
+                        message = json.loads(data.decode('utf-8'))
+                        print(f"   ✓ Decoded as JSON")
+                    except Exception as e:
+                        decode_error = f"json failed: {e}"
+                        print(f"   First bytes: {data[:10].hex()}")
                 
                 if message:
                     msg_type = message.get('type', 'unknown')
                     print(f"   Message type: {msg_type}")
                     self.handle_server_message(message)
                 else:
-                    print(f"   ⚠️  Failed to decode message")
+                    print(f"   ⚠️  Failed to decode message: {decode_error}")
                 
             except socket.timeout:
                 # Timeout is normal, continue
@@ -161,29 +160,23 @@ class GameClient:
                 
                 # Try to decode message - msgpack or JSON
                 message = None
-                try:
-                    # First check if it's binary (msgpack)
-                    if data[0] in (0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
-                                   0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f,
-                                   0xde, 0xdf):
-                        # Binary msgpack data
-                        if MSGPACK_AVAILABLE:
-                            message = msgpack.unpackb(data, raw=False)
-                        else:
-                            continue
-                    else:
-                        # Try JSON
-                        message = json.loads(data.decode('utf-8'))
-                except Exception:
-                    # If detection fails, try both
+                
+                # Try msgpack first if available
+                if MSGPACK_AVAILABLE:
                     try:
-                        if MSGPACK_AVAILABLE:
-                            message = msgpack.unpackb(data, raw=False)
+                        message = msgpack.unpackb(data, raw=False)
                     except Exception:
+                        # Try JSON as fallback
                         try:
                             message = json.loads(data.decode('utf-8'))
                         except Exception:
                             pass
+                else:
+                    # Only JSON available
+                    try:
+                        message = json.loads(data.decode('utf-8'))
+                    except Exception:
+                        pass
                 
                 if message:
                     message_type = message.get('type', '')
