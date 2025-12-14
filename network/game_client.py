@@ -70,7 +70,7 @@ class GameClient:
             # Try msgpack first, fallback to JSON
             try:
                 if MSGPACK_AVAILABLE:
-                    response = msgpack.unpackb(data, raw=False)
+                    response = msgpack.unpackb(data, raw=False, strict_map_key=False)
                 else:
                     response = json.loads(data.decode('utf-8'))
             except (msgpack.exceptions.ExtraData, ValueError):
@@ -119,7 +119,7 @@ class GameClient:
                 # Try msgpack first if available
                 if MSGPACK_AVAILABLE:
                     try:
-                        message = msgpack.unpackb(data, raw=False)
+                        message = msgpack.unpackb(data, raw=False, strict_map_key=False)
                         print(f"   ✓ Decoded as MessagePack")
                     except Exception as e:
                         decode_error = f"msgpack failed: {e}"
@@ -164,7 +164,7 @@ class GameClient:
                 # Try msgpack first if available
                 if MSGPACK_AVAILABLE:
                     try:
-                        message = msgpack.unpackb(data, raw=False)
+                        message = msgpack.unpackb(data, raw=False, strict_map_key=False)
                     except Exception:
                         # Try JSON as fallback
                         try:
