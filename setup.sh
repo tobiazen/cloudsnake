@@ -22,11 +22,16 @@ fi
 PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
 echo "✓ Found Python $PYTHON_VERSION"
 
-# Create virtual environment if it doesn't exist
-if [ -d "$VENV_DIR" ]; then
+# Create virtual environment if it doesn't exist or is incomplete
+if [ -d "$VENV_DIR" ] && [ -f "$VENV_DIR/bin/activate" ]; then
     echo "✓ Virtual environment already exists at $VENV_DIR"
 else
-    echo "Creating virtual environment..."
+    if [ -d "$VENV_DIR" ]; then
+        echo "⚠ Virtual environment exists but is incomplete, recreating..."
+        rm -rf "$VENV_DIR"
+    else
+        echo "Creating virtual environment..."
+    fi
     python3 -m venv "$VENV_DIR"
     echo "✓ Virtual environment created at $VENV_DIR"
 fi
