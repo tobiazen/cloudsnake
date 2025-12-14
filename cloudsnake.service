@@ -6,10 +6,12 @@ After=network.target
 Type=simple
 User=s0001311
 WorkingDirectory=/home/s0001311/dev/cloudsnake
-# Use the virtual environment's Python interpreter
-ExecStart=/home/s0001311/dev/cloudsnake/venv/bin/python /home/s0001311/dev/cloudsnake/server.py
+# Use the virtual environment's Python interpreter with unbuffered output
+ExecStart=/home/s0001311/dev/cloudsnake/venv/bin/python -u /home/s0001311/dev/cloudsnake/server.py
 Restart=always
 RestartSec=10
+# Ensure output is not buffered
+Environment="PYTHONUNBUFFERED=1"
 
 # Logging - keeps file-based logs in logs/ directory
 StandardOutput=append:/home/s0001311/dev/cloudsnake/logs/cloudsnake-server.log
