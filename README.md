@@ -51,17 +51,99 @@ cd cloudsnake
 pip install pygame
 ```
 
-## How to Play
+## Server Deployment
 
-### Starting the Server
+### Quick Server Setup (Recommended)
 
-Run the server on the host machine:
+The server automatically creates its own virtual environment with all dependencies:
+
+1. Clone the repository:
+```bash
+git clone https://github.com/tobiazen/cloudsnake.git
+cd cloudsnake
+```
+
+2. Run the setup script:
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+This will:
+- Create a virtual environment in `./venv`
+- Install all required dependencies (msgpack)
+- Prepare the server for running
+
+3. Start the server manually:
+```bash
+./venv/bin/python server.py
+```
+
+### Installing as a Systemd Service (Linux)
+
+For production deployments, install the server as a systemd service to run automatically:
+
+1. Run the setup script first (if not already done):
+```bash
+./setup.sh
+```
+
+2. Install the systemd service:
+```bash
+chmod +x install-service.sh
+sudo ./install-service.sh
+```
+
+This will:
+- Install the cloudsnake service
+- Enable it to start automatically on boot
+- Start the service immediately
+
+3. Manage the service:
+```bash
+# Check status
+sudo systemctl status cloudsnake
+
+# Start the service
+sudo systemctl start cloudsnake
+
+# Stop the service
+sudo systemctl stop cloudsnake
+
+# Restart the service
+sudo systemctl restart cloudsnake
+
+# View logs
+sudo journalctl -u cloudsnake -f
+
+# Disable auto-start on boot
+sudo systemctl disable cloudsnake
+```
+
+### Manual Server Start
+
+If you don't want to use systemd, you can start the server manually:
 
 ```bash
+# Using the virtual environment
+./venv/bin/python server.py
+
+# Or activate the venv first
+source venv/bin/activate
 python server.py
 ```
 
 The server will start listening on port **50000** by default. Make sure this port is open and accessible to clients on your network.
+
+### Server Requirements
+
+- Python 3.8 or higher
+- MessagePack library (automatically installed by setup.sh)
+- UDP port 50000 and 50001 must be available
+
+## How to Play
+
+### Starting the Client
 
 ### Starting the Client
 

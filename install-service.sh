@@ -1,0 +1,74 @@
+#!/bin/bash
+# Cloudsnake Server Service Installation Script
+# This script installs the cloudsnake server as a systemd service
+
+set -e  # Exit on error
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVICE_FILE="$SCRIPT_DIR/cloudsnake.service"
+SYSTEMD_DIR="/etc/systemd/system"
+SERVICE_NAME="cloudsnake.service"
+
+echo "============================================"
+echo "Cloudsnake Server Service Installation"
+echo "============================================"
+echo ""
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo "❌ Error: This script must be run as root (use sudo)"
+    exit 1
+fi
+
+# Check if virtual environment exists
+if [ ! -d "$SCRIPT_DIR/venv" ]; then
+    echo "❌ Error: Virtual environment not found"
+    echo "Please run ./setup.sh first to create the virtual environment"
+    exit 1
+fi
+
+# Check if service file exists
+if [ ! -f "$SERVICE_FILE" ]; then
+    echo "❌ Error: Service file not found at $SERVICE_FILE"
+    exit 1
+fi
+
+# Stop existing service if running
+if systemctl is-active --quiet "$SERVICE_NAME"; then
+    echo "Stopping existing cloudsnake service..."
+    systemctl stop "$SERVICE_NAME"
+fi
+
+# Copy service file to systemd directory
+echo "Installing service file..."
+cp "$SERVICE_FILE" "$SYSTEMD_DIR/$SERVICE_NAME"
+echo "✓ Service file installed to $SYSTEMD_DIR/$SERVICE_NAME"
+
+# Reload systemd daemon
+echo "Reloading systemd daemon..."
+systemctl daemon-reload
+
+# Enable service to start on boot
+echo "Enabling service to start on boot..."
+systemctl enable "$SERVICE_NAME"
+
+# Start the service
+echo "Starting cloudsnake service..."
+systemctl start "$SERVICE_NAME"
+
+echo ""
+echo "============================================"
+echo "✓ Service installation complete!"
+echo "============================================"
+echo ""
+echo "Service status:"
+systemctl status "$SERVICE_NAME" --no-pager || true
+echo ""
+echo "Useful commands:"
+echo "  Status:  sudo systemctl status cloudsnake"
+echo "  Start:   sudo systemctl start cloudsnake"
+echo "  Stop:    sudo systemctl stop cloudsnake"
+echo "  Restart: sudo systemctl restart cloudsnake"
+echo "  Logs:    sudo journalctl -u cloudsnake -f"
+echo "  Disable: sudo systemctl disable cloudsnake"
+echo ""

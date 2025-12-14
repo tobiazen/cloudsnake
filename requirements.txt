@@ -1,2 +1,5 @@
-pygame>=2.0.0
+# Cloudsnake Server Dependencies
+# Server only needs msgpack - pygame is client-side only
+
+# MessagePack for optimized binary protocol (30% bandwidth reduction)
 msgpack>=1.0.0
