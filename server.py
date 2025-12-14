@@ -294,7 +294,7 @@ class GameServer:
                         message = msgpack.unpackb(data, raw=False)
                     else:
                         message = json.loads(data.decode('utf-8'))
-                except (msgpack.exceptions.ExtraData, ValueError):
+                except (Exception if not MSGPACK_AVAILABLE else msgpack.exceptions.ExtraData, ValueError, UnicodeDecodeError):
                     # Fallback to JSON if msgpack fails
                     message = json.loads(data.decode('utf-8'))
                 
@@ -324,7 +324,7 @@ class GameServer:
                         message = msgpack.unpackb(data, raw=False)
                     else:
                         message = json.loads(data.decode('utf-8'))
-                except (msgpack.exceptions.ExtraData, ValueError):
+                except (Exception if not MSGPACK_AVAILABLE else msgpack.exceptions.ExtraData, ValueError, UnicodeDecodeError):
                     # Fallback to JSON if msgpack fails
                     message = json.loads(data.decode('utf-8'))
                 
