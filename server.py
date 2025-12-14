@@ -61,6 +61,9 @@ class GameServer:
         # Map control addresses to their game socket addresses: {control_address: game_address}
         self.game_addresses: Dict[Tuple[str, int], Tuple[str, int]] = {}
         
+        # Map player IDs to addresses: {player_id: client_address}
+        self.id_to_address: Dict[int, Tuple[str, int]] = {}
+        
         # Store connected clients: {client_address: {player_data}}
         self.clients: Dict[Tuple[str, int], PlayerData] = {}
         
