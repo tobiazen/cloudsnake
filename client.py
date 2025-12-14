@@ -120,7 +120,7 @@ class GameGUI:
         """Update the game state manager with latest data from client."""
         if self.client and self.client.game_state:
             # Check if this is a new game state (different timestamp)
-            old_timestamp = self.game_state_manager.state.get('timestamp', 0) if self.game_state_manager.state else 0
+            old_timestamp = self.game_state_manager._game_state.get('timestamp', 0) if self.game_state_manager._game_state else 0
             new_timestamp = self.client.game_state.get('timestamp', 0)
             
             self.game_state_manager.update(self.client.game_state)
