@@ -289,14 +289,24 @@ class GameServer:
                 data, client_address = self.control_socket.recvfrom(1024)
                 
                 # Try msgpack first, fallback to JSON
+                message = None
                 try:
                     if MSGPACK_AVAILABLE:
-                        message = msgpack.unpackb(data, raw=False)
+                        try:
+                            message = msgpack.unpackb(data, raw=False)
+                        except msgpack.exceptions.ExtraData:
+                            # Fallback to JSON if msgpack fails
+                            message = json.loads(data.decode('utf-8'))
                     else:
                         message = json.loads(data.decode('utf-8'))
-                except (Exception if not MSGPACK_AVAILABLE else msgpack.exceptions.ExtraData, ValueError, UnicodeDecodeError):
-                    # Fallback to JSON if msgpack fails
-                    message = json.loads(data.decode('utf-8'))
+                except (ValueError, UnicodeDecodeError) as e:
+                    # Binary msgpack data received but msgpack not available
+                    addr_str = f"from {client_address}" if client_address else ""
+                    self.logger.warning(f"Received binary data on control socket {addr_str}, but msgpack not installed. Install with: pip install msgpack")
+                    continue
+                
+                if message is None:
+                    continue
                 
                 # Handle control message types
                 message_type: str = message.get('type', '')
@@ -319,14 +329,24 @@ class GameServer:
                 data, game_address = self.game_socket.recvfrom(1024)
                 
                 # Try msgpack first, fallback to JSON
+                message = None
                 try:
                     if MSGPACK_AVAILABLE:
-                        message = msgpack.unpackb(data, raw=False)
+                        try:
+                            message = msgpack.unpackb(data, raw=False)
+                        except msgpack.exceptions.ExtraData:
+                            # Fallback to JSON if msgpack fails
+                            message = json.loads(data.decode('utf-8'))
                     else:
                         message = json.loads(data.decode('utf-8'))
-                except (Exception if not MSGPACK_AVAILABLE else msgpack.exceptions.ExtraData, ValueError, UnicodeDecodeError):
-                    # Fallback to JSON if msgpack fails
-                    message = json.loads(data.decode('utf-8'))
+                except (ValueError, UnicodeDecodeError) as e:
+                    # Binary msgpack data received but msgpack not available
+                    addr_str = f"from {game_address}" if game_address else ""
+                    self.logger.warning(f"Received binary data on game socket {addr_str}, but msgpack not installed. Install with: pip install msgpack")
+                    continue
+                
+                if message is None:
+                    continue
                 
                 # Find the control address for this game message
                 # First, try to match by player_id in message (most reliable)
