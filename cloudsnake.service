@@ -11,10 +11,9 @@ ExecStart=/home/s0001311/dev/cloudsnake/venv/bin/python /home/s0001311/dev/cloud
 Restart=always
 RestartSec=10
 
-# Logging
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=cloudsnake
+# Logging - keeps file-based logs in logs/ directory
+StandardOutput=append:/home/s0001311/dev/cloudsnake/logs/cloudsnake-server.log
+StandardError=append:/home/s0001311/dev/cloudsnake/logs/cloudsnake-server-errors.log
 
 # Security hardening (optional but recommended)
 NoNewPrivileges=true

@@ -47,6 +47,15 @@ sed -i "s|/home/s0001311/dev/cloudsnake/server.py|$SCRIPT_DIR/server.py|g" "$TEM
 echo "Service will run as user: $ACTUAL_USER"
 echo "Working directory: $SCRIPT_DIR"
 
+# Create logs directory if it doesn't exist and set proper permissions
+LOGS_DIR="$SCRIPT_DIR/logs"
+if [ ! -d "$LOGS_DIR" ]; then
+    echo "Creating logs directory..."
+    mkdir -p "$LOGS_DIR"
+fi
+chown -R "$ACTUAL_USER:$ACTUAL_USER" "$LOGS_DIR"
+echo "✓ Logs directory ready: $LOGS_DIR"
+
 # Stop existing service if running
 if systemctl is-active --quiet "$SERVICE_NAME"; then
     echo "Stopping existing cloudsnake service..."
