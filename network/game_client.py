@@ -205,6 +205,9 @@ class GameClient:
         
         if message_type == 'game_state':
             self.game_state = message.get('state')
+            # Debug: Print when we receive game state
+            if self.game_state and 'players' in self.game_state:
+                print(f"📦 Received game state with {len(self.game_state['players'])} players")
             self.display_game_state()
             
             # Update my_color from game state if player is in game
