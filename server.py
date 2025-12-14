@@ -490,8 +490,9 @@ class GameServer:
                 'in_game': False  # Start in lobby
             }
             
-            # Add to game state
-            self.game_state['players'][str(client_address)] = self.clients[client_address].copy()
+            # Generate short player ID (2-byte int)
+            player_id = hash_address_to_player_id(client_address)
+            self.id_to_address[player_id] = client_address
             
             # Initialize player stats if new
             if player_name not in self.stats['players']:
@@ -509,7 +510,7 @@ class GameServer:
             welcome_msg: Dict[str, Any] = {
                 'type': 'welcome',
                 'message': f'Welcome to the lobby, {player_name}!',
-                'player_id': str(client_address),
+                'player_id': player_id,
                 'player_count': len(self.clients),
                 'color': None
             }
@@ -524,9 +525,10 @@ class GameServer:
                     other_name = other_data.get('player_name')
                     if other_color and other_name:
                         color_int = (other_color[0] << 16) | (other_color[1] << 8) | other_color[2]
+                        other_player_id = hash_address_to_player_id(other_address)
                         metadata_msg = {
                             'type': 'player_metadata',
-                            'player_id': str(other_address),
+                            'player_id': other_player_id,
                             'n': other_name,
                             'c': color_int
                         }
@@ -562,11 +564,15 @@ class GameServer:
             if client_address in self.game_addresses:
                 del self.game_addresses[client_address]
             
+            # Remove player ID mapping
+            player_id = hash_address_to_player_id(client_address)
+            if player_id in self.id_to_address:
+                del self.id_to_address[player_id]
+            
             del self.clients[client_address]
             
-            # Remove from game state
-            if str(client_address) in self.game_state['players']:
-                del self.game_state['players'][str(client_address)]
+            # Note: game_state['players'] is rebuilt every broadcast from self.clients,
+            # so no need to manually remove entries here
             
             remaining_players = len(self.clients)
             self.logger.info(f"Remaining players: {remaining_players}")
