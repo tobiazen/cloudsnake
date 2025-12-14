@@ -106,9 +106,11 @@ class GameClient:
     
     def receive_messages(self) -> None:
         """Receive messages from server (game state updates on game socket)"""
+        print(f"🔊 Starting receive_messages thread for game socket...")
         while self.running:
             try:
                 data, addr = self.game_socket.recvfrom(4096)
+                print(f"📨 Received {len(data)} bytes from {addr}")
                 
                 # Try to decode message - msgpack or JSON
                 message = None
@@ -332,6 +334,12 @@ class GameClient:
         # Add player_id to game socket messages for proper client identification
         if use_game_socket and self.player_id:
             message['player_id'] = self.player_id
+        
+        # Debug: Log important messages
+        msg_type = message.get('type', 'unknown')
+        socket_name = 'game' if use_game_socket else 'control'
+        if msg_type in ['start_game', 'leave_game', 'shoot', 'throw_bomb']:
+            print(f"📤 Sending {msg_type} to {socket_name} socket (player_id: {self.player_id})")
         
         # Use MessagePack if available (40-60% smaller), otherwise fallback to JSON
         if MSGPACK_AVAILABLE:
