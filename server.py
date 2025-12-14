@@ -644,9 +644,11 @@ class GameServer:
     def handle_start_game(self, client_address: Tuple[str, int]) -> None:
         """Handle player starting game (joining from lobby) - full game initialization"""
         if client_address not in self.clients:
+            self.logger.warning(f"start_game from unknown client: {client_address}")
             return
         
         player_name = self.clients[client_address]['player_name']
+        self.logger.info(f"📥 Received start_game from {player_name} ({client_address})")
         
         # Check if game is full (count players already in game)
         players_in_game = len([c for c in self.clients.values() if c.get('in_game', False)])
@@ -1379,6 +1381,9 @@ class GameServer:
                 # Send only to clients that are in game
                 disconnected: List[Tuple[str, int]] = []
                 sent_count = 0
+                in_game_count = sum(1 for c in self.clients.values() if c.get('in_game', False))
+                if sent_count == 0 and in_game_count > 0:
+                    self.logger.debug(f"Broadcasting to {in_game_count} players in game")
                 for client_address, client_data in self.clients.items():
                     # Only send game state to clients actively in the game
                     if not client_data.get('in_game', False):

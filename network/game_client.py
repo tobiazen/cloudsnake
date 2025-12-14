@@ -140,7 +140,11 @@ class GameClient:
                             pass
                 
                 if message:
+                    msg_type = message.get('type', 'unknown')
+                    print(f"   Message type: {msg_type}")
                     self.handle_server_message(message)
+                else:
+                    print(f"   ⚠️  Failed to decode message")
                 
             except socket.timeout:
                 # Timeout is normal, continue
