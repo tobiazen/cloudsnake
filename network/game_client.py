@@ -79,7 +79,6 @@ class GameClient:
             if response.get('type') == 'welcome':
                 self.connected = True
                 self.player_id = response.get('player_id')
-                print(f"✓ Connected! Player ID: {self.player_id} (type: {type(self.player_id).__name__})")
                 self.my_color = response.get('color')  # Will be None in lobby
                 
                 # Send initial message on game socket to register game address with server
@@ -106,44 +105,32 @@ class GameClient:
     
     def receive_messages(self) -> None:
         """Receive messages from server (game state updates on game socket)"""
-        print(f"🔊 Starting receive_messages thread for game socket...")
         while self.running:
             try:
                 data, addr = self.game_socket.recvfrom(4096)
-                print(f"📨 Received {len(data)} bytes from {addr}")
                 
                 # Try to decode message - msgpack or JSON
                 message = None
-                decode_error = None
                 
                 # Try msgpack first if available
                 if MSGPACK_AVAILABLE:
                     try:
                         message = msgpack.unpackb(data, raw=False, strict_map_key=False)
-                        print(f"   ✓ Decoded as MessagePack")
-                    except Exception as e:
-                        decode_error = f"msgpack failed: {e}"
+                    except Exception:
                         # Try JSON as fallback
                         try:
                             message = json.loads(data.decode('utf-8'))
-                            print(f"   ✓ Decoded as JSON")
-                        except Exception as e2:
-                            decode_error = f"msgpack failed: {e}, json failed: {e2}"
+                        except Exception:
+                            pass
                 else:
                     # Only JSON available
                     try:
                         message = json.loads(data.decode('utf-8'))
-                        print(f"   ✓ Decoded as JSON")
-                    except Exception as e:
-                        decode_error = f"json failed: {e}"
-                        print(f"   First bytes: {data[:10].hex()}")
+                    except Exception:
+                        pass
                 
                 if message:
-                    msg_type = message.get('type', 'unknown')
-                    print(f"   Message type: {msg_type}")
                     self.handle_server_message(message)
-                else:
-                    print(f"   ⚠️  Failed to decode message: {decode_error}")
                 
             except socket.timeout:
                 # Timeout is normal, continue
@@ -205,17 +192,6 @@ class GameClient:
         
         if message_type == 'game_state':
             self.game_state = message.get('state')
-            # Debug: Print when we receive game state
-            if self.game_state and 'players' in self.game_state:
-                players = self.game_state['players']
-                player_ids = list(players.keys())
-                print(f"📦 Received game state with {len(players)} players")
-                print(f"   Player IDs in state: {player_ids} (types: {[type(pid).__name__ for pid in player_ids]})")
-                print(f"   My player_id: {self.player_id} (type: {type(self.player_id).__name__})")
-                if self.player_id in players:
-                    print(f"   ✓ Found myself in game state!")
-                else:
-                    print(f"   ✗ NOT found in game state (ID mismatch?)")
             self.display_game_state()
             
             # Update my_color from game state if player is in game
@@ -331,12 +307,6 @@ class GameClient:
         # Add player_id to game socket messages for proper client identification
         if use_game_socket and self.player_id:
             message['player_id'] = self.player_id
-        
-        # Debug: Log important messages
-        msg_type = message.get('type', 'unknown')
-        socket_name = 'game' if use_game_socket else 'control'
-        if msg_type in ['start_game', 'leave_game', 'shoot', 'throw_bomb']:
-            print(f"📤 Sending {msg_type} to {socket_name} socket (player_id: {self.player_id})")
         
         # Use MessagePack if available (40-60% smaller), otherwise fallback to JSON
         if MSGPACK_AVAILABLE:
