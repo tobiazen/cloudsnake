@@ -79,13 +79,14 @@ class GameClient:
             if response.get('type') == 'welcome':
                 self.connected = True
                 self.player_id = response.get('player_id')
+                print(f"✓ Connected! Player ID: {self.player_id} (type: {type(self.player_id).__name__})")
                 self.my_color = response.get('color')  # Will be None in lobby
                 
                 # Send initial message on game socket to register game address with server
                 # This ensures we receive game state broadcasts even while in lobby
                 lobby_msg = {
                     'type': 'lobby_ping',
-                    'player_id': str(self.player_id)
+                    'player_id': self.player_id  # Keep as int (hashed player ID)
                 }
                 self.send_to_server(lobby_msg, use_game_socket=True)
                 
@@ -207,7 +208,15 @@ class GameClient:
             self.game_state = message.get('state')
             # Debug: Print when we receive game state
             if self.game_state and 'players' in self.game_state:
-                print(f"📦 Received game state with {len(self.game_state['players'])} players")
+                players = self.game_state['players']
+                player_ids = list(players.keys())
+                print(f"📦 Received game state with {len(players)} players")
+                print(f"   Player IDs in state: {player_ids} (types: {[type(pid).__name__ for pid in player_ids]})")
+                print(f"   My player_id: {self.player_id} (type: {type(self.player_id).__name__})")
+                if self.player_id in players:
+                    print(f"   ✓ Found myself in game state!")
+                else:
+                    print(f"   ✗ NOT found in game state (ID mismatch?)")
             self.display_game_state()
             
             # Update my_color from game state if player is in game
