@@ -12,8 +12,8 @@ try:
     MSGPACK_AVAILABLE = True
 except ImportError:
     MSGPACK_AVAILABLE = False
-    print("Warning: msgpack not installed. Install with: pip install msgpack")
-    print("Falling back to JSON encoding (larger messages)")
+    # Note: Logging not yet initialized at import time
+    # Warning will be logged when server starts if msgpack not available
 
 # Direction mappings for optimization
 DIRECTION_TO_INT = {'UP': 0, 'DOWN': 1, 'LEFT': 2, 'RIGHT': 3}
@@ -251,6 +251,13 @@ class GameServer:
         self.logger.info(f"Starting game server on {self.host}:{self.port}")
         self.logger.info(f"Game socket listening on port {self.game_port}")
         self.logger.info(f"Max players: {self.max_players}")
+        
+        # Log msgpack availability
+        if MSGPACK_AVAILABLE:
+            self.logger.info("MessagePack enabled - optimized binary protocol active")
+        else:
+            self.logger.warning("MessagePack not installed - using JSON protocol (larger messages)")
+            self.logger.warning("Install msgpack for 30% bandwidth reduction: pip install msgpack")
         
         # Start broadcast thread (game state at 2Hz)
         broadcast_thread = threading.Thread(target=self.broadcast_game_state, daemon=True)

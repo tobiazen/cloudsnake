@@ -9,8 +9,8 @@ try:
     MSGPACK_AVAILABLE = True
 except ImportError:
     MSGPACK_AVAILABLE = False
-    print("Warning: msgpack not installed. Install with: pip install msgpack")
-    print("Falling back to JSON encoding (larger messages)")
+    # Note: Client will use JSON if msgpack not available
+    # Server should not require msgpack to be installed
 
 # Direction mappings for network optimization
 INT_TO_DIRECTION = {0: 'UP', 1: 'DOWN', 2: 'LEFT', 3: 'RIGHT'}
