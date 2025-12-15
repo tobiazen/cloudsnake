@@ -86,6 +86,10 @@ class GameGUI:
         self.interpolation_time = 0.0  # Time elapsed since last server update
         self.server_update_interval = 0.5  # Server updates at 2Hz (0.5 seconds)
         
+        # Bullet interpolation for smooth movement
+        self.bullet_positions = []  # Previous bullet positions
+        self.bullet_targets = []    # Current bullet positions
+        
         # Respawn button (shown when dead) - will be positioned dynamically
         self.respawn_button = Button(350, 380, 150, 30, 'Respawn', GREEN)
         
@@ -283,13 +287,10 @@ class GameGUI:
             pygame.draw.rect(self.screen, RED, brick_rect)
             pygame.draw.rect(self.screen, DARK_RED, brick_rect, 2)
         
-        # Draw bullets
-        for bullet in self.game_state_manager.get_bullets():
-            pos = bullet.get('pos', [0, 0])
-            if isinstance(pos, list) and len(pos) >= 2:
-                x, y = pos[0], pos[1]
-            else:
-                x, y = pos
+        # Draw bullets with interpolation for smooth movement
+        for bullet_index, bullet in enumerate(self.game_state_manager.get_bullets()):
+            # Get interpolated position for smooth movement
+            x, y = self.get_interpolated_bullet_position(bullet_index)
             
             # Draw bullet as small red circle
             bullet_center = (
@@ -1072,6 +1073,7 @@ class GameGUI:
         if not self.game_state_manager.is_valid:
             return
         
+        # Update snake positions
         for player_id, player_data in self.game_state_manager.get_players().items():
             player = PlayerInfo(player_id, player_data, self.game_state_manager)
             if player.snake:
@@ -1083,6 +1085,14 @@ class GameGUI:
                 
                 # Set new target positions
                 self.snake_targets[player_id] = player.snake.copy()
+        
+        # Update bullet positions
+        bullets = self.game_state_manager.get_bullets()
+        if self.bullet_targets:
+            self.bullet_positions = self.bullet_targets.copy()
+        else:
+            self.bullet_positions = [bullet.copy() for bullet in bullets]
+        self.bullet_targets = [bullet.copy() for bullet in bullets]
         
         # Reset interpolation timer
         self.interpolation_time = 0.0
@@ -1111,6 +1121,52 @@ class GameGUI:
         
         current_x, current_y = current_snake[segment_index]
         target_x, target_y = target_snake[segment_index]
+        
+        # Linear interpolation
+        interp_x = current_x + (target_x - current_x) * t
+        interp_y = current_y + (target_y - current_y) * t
+        
+        return (interp_x, interp_y)
+    
+    def get_interpolated_bullet_position(self, bullet_index: int) -> Tuple[float, float]:
+        """Get interpolated position for a bullet"""
+        # Check if we have interpolation data
+        if not self.bullet_positions or not self.bullet_targets:
+            # No interpolation data, return target position
+            if bullet_index < len(self.bullet_targets):
+                pos = self.bullet_targets[bullet_index].get('pos', [0, 0])
+                if isinstance(pos, list) and len(pos) >= 2:
+                    return (float(pos[0]), float(pos[1]))
+            return (0.0, 0.0)
+        
+        # Handle bullet count changes
+        if bullet_index >= len(self.bullet_positions) or bullet_index >= len(self.bullet_targets):
+            # Bullet doesn't exist in both states, just return target
+            if bullet_index < len(self.bullet_targets):
+                pos = self.bullet_targets[bullet_index].get('pos', [0, 0])
+                if isinstance(pos, list) and len(pos) >= 2:
+                    return (float(pos[0]), float(pos[1]))
+            return (0.0, 0.0)
+        
+        # Get positions from both states
+        current_bullet = self.bullet_positions[bullet_index]
+        target_bullet = self.bullet_targets[bullet_index]
+        
+        current_pos = current_bullet.get('pos', [0, 0])
+        target_pos = target_bullet.get('pos', [0, 0])
+        
+        if isinstance(current_pos, list) and len(current_pos) >= 2:
+            current_x, current_y = float(current_pos[0]), float(current_pos[1])
+        else:
+            current_x, current_y = float(current_pos[0]), float(current_pos[1])
+        
+        if isinstance(target_pos, list) and len(target_pos) >= 2:
+            target_x, target_y = float(target_pos[0]), float(target_pos[1])
+        else:
+            target_x, target_y = float(target_pos[0]), float(target_pos[1])
+        
+        # Interpolate between current and target
+        t = min(self.interpolation_time / self.server_update_interval, 1.0)
         
         # Linear interpolation
         interp_x = current_x + (target_x - current_x) * t
