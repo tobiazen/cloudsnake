@@ -1088,11 +1088,49 @@ class GameGUI:
         
         # Update bullet positions
         bullets = self.game_state_manager.get_bullets()
-        if self.bullet_targets:
-            self.bullet_positions = self.bullet_targets.copy()
-        else:
+        
+        # Handle bullet count changes (new bullets spawned or bullets removed)
+        if len(bullets) > len(self.bullet_targets):
+            # New bullets added - need to initialize their starting positions
+            new_bullet_positions = []
+            for i, bullet in enumerate(bullets):
+                if i < len(self.bullet_targets):
+                    # Existing bullet - keep old target as new position
+                    new_bullet_positions.append(self.bullet_targets[i].copy())
+                else:
+                    # New bullet - calculate spawn position by moving backwards from current position
+                    # Bullets move 3 cells per server tick, so move backwards 3 cells in opposite direction
+                    new_bullet = bullet.copy()
+                    pos = bullet.get('pos', [0, 0])
+                    direction = bullet.get('direction', 'RIGHT')
+                    
+                    # Calculate where bullet started (3 cells back)
+                    spawn_x, spawn_y = pos[0], pos[1]
+                    if direction == 'UP':
+                        spawn_y += 3
+                    elif direction == 'DOWN':
+                        spawn_y -= 3
+                    elif direction == 'LEFT':
+                        spawn_x += 3
+                    elif direction == 'RIGHT':
+                        spawn_x -= 3
+                    
+                    new_bullet['pos'] = [spawn_x, spawn_y]
+                    new_bullet_positions.append(new_bullet)
+            
+            self.bullet_positions = new_bullet_positions
+            self.bullet_targets = [bullet.copy() for bullet in bullets]
+        elif len(bullets) < len(self.bullet_targets):
+            # Bullets removed - just use current bullets for both
             self.bullet_positions = [bullet.copy() for bullet in bullets]
-        self.bullet_targets = [bullet.copy() for bullet in bullets]
+            self.bullet_targets = [bullet.copy() for bullet in bullets]
+        else:
+            # Normal case: move targets to positions, then update targets
+            if self.bullet_targets:
+                self.bullet_positions = self.bullet_targets.copy()
+            else:
+                self.bullet_positions = [bullet.copy() for bullet in bullets]
+            self.bullet_targets = [bullet.copy() for bullet in bullets]
         
         # Reset interpolation timer
         self.interpolation_time = 0.0
