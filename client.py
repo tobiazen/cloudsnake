@@ -84,7 +84,7 @@ class GameGUI:
         self.snake_positions = {}  # {player_id: [(x, y), ...]} - previous server positions
         self.snake_targets = {}    # {player_id: [(x, y), ...]} - current server positions
         self.interpolation_time = 0.0  # Time elapsed since last server update
-        self.server_update_interval = 0.5  # Server updates at 2Hz (0.5 seconds)
+        self.server_update_interval = 0.25  # Server updates at 4Hz (0.25 seconds)
         
         # Bullet interpolation for smooth movement
         self.bullet_positions = []  # Previous bullet positions

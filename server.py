@@ -129,7 +129,7 @@ class GameServer:
         self.max_players = 16  # Maximum number of players allowed
         
         self.running = False
-        self.broadcast_interval = 0.5  # 2Hz = 0.5 seconds
+        self.broadcast_interval = 0.25  # 4Hz = 0.25 seconds
         # Cached occupied cells for quick membership checks
         self.occupied_cells: set[Tuple[int, int]] = set()
         
