@@ -29,7 +29,7 @@ def ensure_dependencies() -> None:
     for dep in dependencies:
         try:
             __import__(dep)
-            print(f"✓ {dep} is installed")
+            print(f"[OK] {dep} is installed")
         except ImportError:
             print(f"Installing {dep}...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", dep])
