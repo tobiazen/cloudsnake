@@ -21,6 +21,19 @@ def install_pyinstaller() -> None:
     print("Installing PyInstaller...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
 
+def ensure_dependencies() -> None:
+    """Ensure all required dependencies are installed"""
+    print("Checking dependencies...")
+    dependencies = ["pygame", "msgpack"]
+    
+    for dep in dependencies:
+        try:
+            __import__(dep)
+            print(f"✓ {dep} is installed")
+        except ImportError:
+            print(f"Installing {dep}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", dep])
+
 def build_executable() -> bool:
     """Build standalone executable"""
     system = platform.system()
@@ -32,6 +45,7 @@ def build_executable() -> bool:
         sys.executable, "-m", "PyInstaller",
         "--onefile",  # Single executable file
         "--name", "SnakeGame",
+        "--hidden-import", "msgpack",  # Ensure msgpack is bundled
         "client.py"
     ]
     
@@ -69,6 +83,9 @@ def main() -> None:
     print("="*60)
     print("Snake Game - Executable Builder")
     print("="*60)
+    
+    # Ensure dependencies are installed
+    ensure_dependencies()
     
     # Check/install PyInstaller
     if not check_pyinstaller():

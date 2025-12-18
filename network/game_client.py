@@ -68,15 +68,25 @@ class GameClient:
             # Wait for welcome message
             data, addr = self.control_socket.recvfrom(1024)
             
-            # Try msgpack first, fallback to JSON
-            try:
-                if MSGPACK_AVAILABLE:
+            # Decode message - try msgpack first, then JSON
+            response = None
+            if MSGPACK_AVAILABLE:
+                try:
                     response = msgpack.unpackb(data, raw=False, strict_map_key=False)
-                else:
+                except Exception:
+                    pass
+            
+            # If msgpack failed or not available, try JSON
+            if response is None:
+                try:
                     response = json.loads(data.decode('utf-8'))
-            except Exception:
-                # Fallback to JSON if msgpack fails or isn't available
-                response = json.loads(data.decode('utf-8'))
+                except UnicodeDecodeError:
+                    raise ConnectionError(
+                        "Server is sending msgpack binary data, but msgpack is not available in this client. "
+                        "Please install msgpack: pip install msgpack, or ensure msgpack is included in your bundle."
+                    )
+                except Exception as e:
+                    raise ConnectionError(f"Could not decode server response: {e}")
             
             if response.get('type') == 'welcome':
                 self.connected = True
