@@ -8,6 +8,7 @@ try:
     import msgpack
     MSGPACK_AVAILABLE = True
 except ImportError:
+    msgpack = None  # Set to None so checks don't fail
     MSGPACK_AVAILABLE = False
     # Note: Client will use JSON if msgpack not available
     # Server should not require msgpack to be installed
@@ -73,7 +74,8 @@ class GameClient:
                     response = msgpack.unpackb(data, raw=False, strict_map_key=False)
                 else:
                     response = json.loads(data.decode('utf-8'))
-            except (msgpack.exceptions.ExtraData, ValueError):
+            except Exception:
+                # Fallback to JSON if msgpack fails or isn't available
                 response = json.loads(data.decode('utf-8'))
             
             if response.get('type') == 'welcome':
